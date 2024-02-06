@@ -1,4 +1,8 @@
 # Arduino_USB_Host
+  
+
+Using Arduino and ESP32 as USB Host.
+The code uses the infamous mini USB host shield from Aliexpress, etc..
 
 Pinout  
 |PIN      | Arduino DUE        | Mini USB Host Shield | ESP32 |
