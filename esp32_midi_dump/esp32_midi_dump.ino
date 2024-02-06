@@ -11,7 +11,14 @@
  */
 
  /*
-    Trying to use the cheap mmini-USB-Host-shield with an esp32 and USB_Host_Shield_2.0-library.
+      Arduino Example with USB_Host_Shiel_2.0 and
+      Sparkfun USB Host board from 2011.
+
+      This board needs a dedicated move to reset the MAX3421.
+      https://learn.watterott.com/de/kb/sparkfun-boards/
+
+      the System works best when used with an active USB hub
+      or when (additionally) powered via the Arduino-board's barrel-connector.
  */
 
 #include <usbh_midi.h>
@@ -20,7 +27,10 @@
 USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
-#define MAX_RESET 15 //MAX3421E pin 12
+
+//Revision 1.3 (DEV-09947)
+#define MAX_RESET 7 //MAX3421E pin 12
+#define MAX_GPX   8 //MAX3421E pin 17
 
 void MIDI_poll();
 
@@ -35,28 +45,24 @@ void onInit()
 
 void setup()
 {
-  pinMode(MAX_RESET, OUTPUT);
-  digitalWrite(MAX_RESET, LOW);
-  delay(50); //wait 20ms
-  digitalWrite(MAX_RESET, HIGH);
-  delay(50); //wait 20ms
   Serial.begin(115200);
   while(!Serial);
-  //Serial.println("Serial init'd");
-
+  Serial.println("Serial init'd");
+    pinMode(MAX_GPX, INPUT);
+    pinMode(MAX_RESET, OUTPUT);
+    digitalWrite(MAX_RESET, LOW);
+    delay(50); //wait 20ms
+    digitalWrite(MAX_RESET, HIGH);
+    delay(50); //wait 20ms
 
   if (Usb.Init() == -1) {
-    Serial.println("Error on Init()");
     while (1); //halt
   }//if (Usb.Init() == -1...
   delay( 200 );
 
   // Register onInit() function
   Midi.attachOnInit(onInit);
-
-  Serial.println("Ready...");
-
-  
+  Serial.println("Ready");
 }
 
 void loop()
