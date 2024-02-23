@@ -12,6 +12,7 @@ Devices I found working with the unmodified shield:
 </br>
 
 - Akai APC mini  
+- Launchkey Mini MK3  
 </br>
 </br>
 </br>
