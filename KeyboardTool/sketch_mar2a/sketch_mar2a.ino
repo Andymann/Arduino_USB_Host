@@ -1,5 +1,6 @@
 /*
   KeyboardTool
+  Based on mini USB host shield
   Takes a MIDI input from a USB MIDI Keyboard, processes it and sends it out via MIDI socket.
 
     -velocity fixer: converts incoming velocity to a fix value
