@@ -8,18 +8,50 @@
     -scaler 1: only processes notes that fit into a selected scale
     -scaler 2: maps every incoming note to the nearest note of a selected scale
 
+    74hc4067 doesn't need pulldown resistors
+
 */
 #include <usbh_midi.h>
 #include <usbhub.h>
+
+#include <Wire.h>
+#include "SSD1306Ascii.h"
+#include "SSD1306AsciiWire.h"
+
+#include <light_CD74HC4067.h>
+#include <Button2.h>
+
+#define ENCODER_DO_NOT_USE_INTERRUPTS
+#include <Encoder.h>
+
+
+Encoder myEnc(6, 7);
+long position  = -999;
 
 USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define MAX_RESET 7 //MAX3421E pin 12
-#define MAX_GPX   8 //MAX3421E pin 17
+#define VERSION "0.2"
 
-void MIDI_poll();
+#define MAX_RESET 8 //MAX3421E pin 12
+#define MAX_GPX   9 //MAX3421E pin 17
+
+// 0X3C+SA0 - 0x3C or 0x3D
+#define DISPLAY_I2C_ADDRESS 0x3C
+SSD1306AsciiWire oled;
+
+CD74HC4067 mux(2, 3, 4, 5);  // S0, S1, S2, S3.  EN->GND
+#define DEMUX_PIN A0 // S16
+bool muxValue[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // The value of the Buttons as read from the multiplexer
+
+const string MNU_VELOCITY = "Velocity";
+const string MNU_VELOCITY_PASSTHRU = "Passthru";
+const string MNU_VELOCITY_FIX = "Fix";
+const string MNU_VELOCITY_RANDOMFIX = "Fix+Random";
+const string MNU_SCALE = "Scale";
+const string MNU_CHANNEL = "Channel";
+String sMenu[] = {"Velocity", ""};
 
 void onInit()
 {
@@ -32,6 +64,7 @@ void onInit()
 
 void setup()
 {
+  pinMode(DEMUX_PIN, INPUT);
   Serial.begin(115200);
   while(!Serial);
   Serial.println("Serial init'd");
@@ -49,18 +82,35 @@ void setup()
 
   // Register onInit() function
   Midi.attachOnInit(onInit);
+
+  Wire.begin();
+  Wire.setClock(400000L);
+  oled.begin(&Adafruit128x64, DISPLAY_I2C_ADDRESS);
+
   Serial.println("Ready");
+  showInfo(3000);
 }
 
 void loop()
 {
+  
+  readMux();
   Usb.Task();
   if ( Midi ) {
     MIDI_poll();
   }
+  //int i=queryEncoder();
+  //if(i!=0)
+  //  Serial.println( String(i) );
+
+   long newPos = myEnc.read();
+  if (newPos != position) {
+    position = newPos;
+    Serial.println(position);
+  }
 }
 
-// Poll USB MIDI Controler and send to serial MIDI
+// Poll USB MIDI Controller and send to serial MIDI
 void MIDI_poll()
 {
   uint8_t bufMidi[MIDI_EVENT_PACKET_SIZE];
@@ -69,10 +119,11 @@ void MIDI_poll()
   if (Midi.RecvData( &rcvd,  bufMidi) == 0 ) {
     processData(bufMidi);
   }
+  
 }
 
 void processData( uint8_t pBufMidi[] ){
-  printData(pBufMidi);
+  //printData(pBufMidi);
   switch (pBufMidi[0]) {
   case 0x08:
     processNoteOff(pBufMidi);
@@ -108,7 +159,8 @@ void processNoteOn( uint8_t pBufMidi[] ){
   uint8_t iPitch = pBufMidi[2];
   uint8_t iVelocity = pBufMidi[3];
   if(iVelocity>0){
-    Serial.println("Note ON. Channel:" + String(iChannel) );
+    //Serial.println("Note ON. Channel:" + String(iPitch) + " " + String(iChannel) );
+    displayIncoming( pBufMidi );
   }
 }
 
@@ -118,3 +170,39 @@ void processCC( uint8_t pBufMidi[] ){
   uint8_t iValue = pBufMidi[3];
   //Serial.println("CC. Channel:" + String(iChannel) + " CC:" + String(iController)+ " Value:" + String(iValue) );
 }
+
+void showInfo(int pWaitMS) {
+  oled.setFont(ZevvPeep8x16);
+  oled.clear();
+  oled.set2X();
+  oled.println("Keeboard");
+  oled.set1X();
+  oled.print("  Version ");
+  oled.println(VERSION);
+  oled.println();
+  oled.println(" Andyland.info");
+  delay(pWaitMS);
+}
+
+void displayIncoming( uint8_t pBufMidi[] ){
+  uint8_t iChannel = pBufMidi[1] - 0x90;
+  uint8_t iPitch = pBufMidi[2];
+  uint8_t iVelocity = pBufMidi[3];
+  oled.clear();
+  oled.set2X();
+  oled.println( "Note:" +String(iPitch) );
+  oled.set1X();
+  oled.println("Velo:" + String(iVelocity) +  " Chan:" + String(iChannel));
+}
+
+void readMux() {
+  // loop through channels 0 - 15
+  for (uint8_t i = 0; i < 15; i++) {
+    mux.channel(i);
+    int val = digitalRead(DEMUX_PIN);
+    muxValue[i] = val;
+  }
+  //Serial.println(String(muxValue[0]));
+}
+
+
