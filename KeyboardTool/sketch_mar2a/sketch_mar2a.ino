@@ -8,34 +8,30 @@
     -scaler 1: only processes notes that fit into a selected scale
     -scaler 2: maps every incoming note to the nearest note of a selected scale
 
-    74hc4067 doesn't need pulldown resistors
+    74hc4067 doesn't need pulldown resistors on slow buttons but DEFINITELY on a rotary encoder
 
 */
 #include <usbh_midi.h>
 #include <usbhub.h>
-
 #include <Wire.h>
 #include "SSD1306Ascii.h"
 #include "SSD1306AsciiWire.h"
-
 #include <light_CD74HC4067.h>
 #include <Button2.h>
 
-#define ENCODER_DO_NOT_USE_INTERRUPTS
-#include <Encoder.h>
 
-
-Encoder myEnc(6, 7);
-long position  = -999;
 
 USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
 #define VERSION "0.2"
-
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
+
+#define ENCODER_A 13
+#define ENCODER_B 14
+#define ENCODER_CLICK 15
 
 // 0X3C+SA0 - 0x3C or 0x3D
 #define DISPLAY_I2C_ADDRESS 0x3C
@@ -45,13 +41,17 @@ CD74HC4067 mux(2, 3, 4, 5);  // S0, S1, S2, S3.  EN->GND
 #define DEMUX_PIN A0 // S16
 bool muxValue[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // The value of the Buttons as read from the multiplexer
 
-const string MNU_VELOCITY = "Velocity";
-const string MNU_VELOCITY_PASSTHRU = "Passthru";
-const string MNU_VELOCITY_FIX = "Fix";
-const string MNU_VELOCITY_RANDOMFIX = "Fix+Random";
-const string MNU_SCALE = "Scale";
-const string MNU_CHANNEL = "Channel";
+bool bEncoderCLick = muxValue[15];
+
+const String MNU_VELOCITY = "Velocity";
+const String MNU_VELOCITY_PASSTHRU = "Passthru";
+const String MNU_VELOCITY_FIX = "Fix";
+const String MNU_VELOCITY_RANDOMFIX = "Fix+Random";
+const String MNU_SCALE = "Scale";
+const String MNU_CHANNEL = "Channel";
 String sMenu[] = {"Velocity", ""};
+
+int iEncoderValue = 0;
 
 void onInit()
 {
@@ -93,21 +93,17 @@ void setup()
 
 void loop()
 {
-  
   readMux();
   Usb.Task();
   if ( Midi ) {
     MIDI_poll();
   }
-  //int i=queryEncoder();
-  //if(i!=0)
-  //  Serial.println( String(i) );
 
-   long newPos = myEnc.read();
-  if (newPos != position) {
-    position = newPos;
-    Serial.println(position);
+  iEncoderValue = queryEncoder();
+  if(iEncoderValue!=0){
+    Serial.println( iEncoderValue );
   }
+  
 }
 
 // Poll USB MIDI Controller and send to serial MIDI
@@ -195,6 +191,7 @@ void displayIncoming( uint8_t pBufMidi[] ){
   oled.println("Velo:" + String(iVelocity) +  " Chan:" + String(iChannel));
 }
 
+
 void readMux() {
   // loop through channels 0 - 15
   for (uint8_t i = 0; i < 15; i++) {
@@ -206,3 +203,39 @@ void readMux() {
 }
 
 
+bool encoder0PinALast = false;
+uint8_t encoder0Pos = 128;
+uint8_t encoder0PosOld = 128;
+
+// Returns -1 / +1
+int queryEncoder(){
+  int iReturn = 0;
+  if ((encoder0PinALast == false) && (muxValue[ENCODER_A] == true)) {
+     if (muxValue[ENCODER_B] == false) {
+       encoder0Pos--;
+     } else {
+       encoder0Pos++;
+     }
+   } 
+   
+   if ((encoder0PinALast == true) && (muxValue[ENCODER_A] == false)) {
+     if (muxValue[ENCODER_B] == true) {
+       encoder0Pos--;
+     } else {
+       encoder0Pos++;
+     }
+   }
+   
+   if (encoder0Pos != encoder0PosOld){
+     if(encoder0Pos%2==0){
+      if(encoder0Pos<encoder0PosOld){
+        iReturn = -1;
+      }else{
+        iReturn = 1;
+      }
+     }
+     encoder0PosOld = encoder0Pos;
+   }
+   encoder0PinALast = muxValue[ENCODER_A];
+  return iReturn;
+}
