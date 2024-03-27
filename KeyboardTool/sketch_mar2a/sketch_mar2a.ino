@@ -20,6 +20,11 @@
 #include <Button2.h>
 
 
+//Define your font here. Default font: lcd5x7
+#define menuFont ZevvPeep8x16
+#define fontW 8
+#define fontH 16
+
 
 USB Usb;
 USBHub Hub(&Usb);
@@ -41,17 +46,12 @@ CD74HC4067 mux(2, 3, 4, 5);  // S0, S1, S2, S3.  EN->GND
 #define DEMUX_PIN A0 // S16
 bool muxValue[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // The value of the Buttons as read from the multiplexer
 
-bool bEncoderCLick = muxValue[15];
-
-const String MNU_VELOCITY = "Velocity";
-const String MNU_VELOCITY_PASSTHRU = "Passthru";
-const String MNU_VELOCITY_FIX = "Fix";
-const String MNU_VELOCITY_RANDOMFIX = "Fix+Random";
-const String MNU_SCALE = "Scale";
-const String MNU_CHANNEL = "Channel";
-String sMenu[] = {"Velocity", ""};
-
 int iEncoderValue = 0;
+
+
+
+
+
 
 void onInit()
 {
@@ -168,7 +168,7 @@ void processCC( uint8_t pBufMidi[] ){
 }
 
 void showInfo(int pWaitMS) {
-  oled.setFont(ZevvPeep8x16);
+  oled.setFont(menuFont);
   oled.clear();
   oled.set2X();
   oled.println("Keeboard");
