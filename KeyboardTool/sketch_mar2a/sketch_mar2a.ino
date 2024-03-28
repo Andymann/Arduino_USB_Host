@@ -20,8 +20,6 @@
 #include <Button2.h>
 
 #include "AppFeature.h"
-//#include "RootMenuItem.h"
-//#include "SubMenuItem.h"
 
 //Define your font here. Default font: lcd5x7
 #define menuFont ZevvPeep8x16
@@ -113,6 +111,7 @@ void onInit()
 
 void setup()
 {
+  randomSeed(analogRead(1));
   pinMode(DEMUX_PIN, INPUT);
   Serial.begin(115200);
   while(!Serial);
@@ -213,10 +212,69 @@ void processNoteOn( uint8_t pBufMidi[] ){
   uint8_t iChannel = pBufMidi[1] - 0x90;
   uint8_t iPitch = pBufMidi[2];
   uint8_t iVelocity = pBufMidi[3];
-  if(iVelocity>0){
-    //Serial.println("Note ON. Channel:" + String(iPitch) + " " + String(iChannel) );
-    displayIncoming( pBufMidi );
+  
+  Serial.println("INCOMING: Note ON " + String(iPitch) + "  Channel: " + String(iChannel+1) + "  Velocity: " + String(iVelocity) );
+  //displayIncoming( pBufMidi );
+  for(uint8_t i=0; i<FEATURECOUNT; i++){
+    if(arrFeatures[i].isSelected()){
+      if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
+        if(iVelocity>0){
+          if(arrFeatures[i].getFeature()==VELOCITY_PASSTHRU){
+            // Don't change
+          }else if(arrFeatures[i].getFeature()==VELOCITY_FIX_63){
+            iVelocity = 63;
+          }if(arrFeatures[i].getFeature()==VELOCITY_FIX_100){
+            iVelocity = 100;
+          }if(arrFeatures[i].getFeature()==VELOCITY_FIX_127){
+            iVelocity = 127;
+          }if(arrFeatures[i].getFeature()==VELOCITY_RANDOM){
+            iVelocity=(int)random(128);
+          }
+        }
+      }
+      if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+        if(arrFeatures[i].getFeature()==CHANNEL_PASSTHRU){
+          // Don't change anything
+        }else if(arrFeatures[i].getFeature()==CHANNEL_1){
+          iChannel=1;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_2){
+          iChannel=2;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_3){
+        iChannel=3;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_4){
+          iChannel=4;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_5){
+          iChannel=5;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_6){
+          iChannel=6;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_7){
+        iChannel=7;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_8){
+          iChannel=8;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_9){
+        iChannel=9;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_10){
+          iChannel=10;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_11){
+        iChannel=11;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_12){
+        iChannel=12;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_13){
+        iChannel=13;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_14){
+          iChannel=14;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_15){
+        iChannel=15;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_16){
+          iChannel=16;
+        }
+      }
+    }
   }
+  
+
+  Serial.println("OUTGOING: Note ON " + String(iPitch) + "  Channel: " + String(iChannel) + "  Velocity: " + String(iVelocity) );
+
 }
 
 void processCC( uint8_t pBufMidi[] ){
@@ -309,7 +367,8 @@ void processEncoderClick(){
     }
   }
 
-  //If scale passthrough is selected then we deselect all root-note-modes.
+  // If scale passthrough is selected then we deselect all root-note-modes.
+  // ToDO: Markings on PT when a Root-note is selected.
   if(arrFeatures[iMenuPosition].getFeatureGroup()==FEATURE_GROUP_SCALE){
     if(arrFeatures[iMenuPosition].getFeature()==SCALE_PASSTHRU){
       for(uint8_t i=0; i< FEATURECOUNT; i++){
@@ -327,7 +386,6 @@ void processEncoderClick(){
 
 
 void processMenuNavigation(int pDirection){
-  //Serial.println("processMenuNavigation()");
   if(iMenuPosition==-3){  // on the fery first encoder rotation we jump to the first item
     iMenuPosition = 0;
   }else{
@@ -340,8 +398,6 @@ void processMenuNavigation(int pDirection){
     iMenuPosition =0;
   }
 
-  //Serial.println( getMenuItem(iMenuPosition) );
-  //Serial.println( getPreviousMenuItem(iMenuPosition) + " " +  + " " +getMenuItem( iMenuPosition ) + " " + getNextMenuItem(iMenuPosition));
   showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
 }
 
