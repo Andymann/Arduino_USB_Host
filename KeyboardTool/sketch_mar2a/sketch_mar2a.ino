@@ -19,6 +19,9 @@
 #include <light_CD74HC4067.h>
 #include <Button2.h>
 
+#include "AppFeature.h"
+//#include "RootMenuItem.h"
+//#include "SubMenuItem.h"
 
 //Define your font here. Default font: lcd5x7
 #define menuFont ZevvPeep8x16
@@ -36,7 +39,7 @@ USBH_MIDI  Midi(&Usb);
 
 #define ENCODER_A 13
 #define ENCODER_B 14
-#define ENCODER_CLICK 15
+#define ENCODER_CLICK 12
 
 // 0X3C+SA0 - 0x3C or 0x3D
 #define DISPLAY_I2C_ADDRESS 0x3C
@@ -47,9 +50,55 @@ CD74HC4067 mux(2, 3, 4, 5);  // S0, S1, S2, S3.  EN->GND
 bool muxValue[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // The value of the Buttons as read from the multiplexer
 
 int iEncoderValue = 0;
+bool bEncoderClick_old = false;
+
+AppFeature arrFeatures[] = {
+  AppFeature("PT", FEATURE_GROUP_VELOCITY, VELOCITY_PASSTHRU, true),
+  AppFeature("Fix63", FEATURE_GROUP_VELOCITY, VELOCITY_FIX_63),
+  AppFeature("Fix100", FEATURE_GROUP_VELOCITY, VELOCITY_FIX_100),
+  AppFeature("Fix127", FEATURE_GROUP_VELOCITY, VELOCITY_FIX_127),
+  AppFeature("Rnd", FEATURE_GROUP_VELOCITY, VELOCITY_RANDOM),
+  
+  AppFeature("PT", FEATURE_GROUP_SCALE, SCALE_PASSTHRU, true),
+  AppFeature("Major", FEATURE_GROUP_SCALE, SCALE_MAJOR),
+  AppFeature("Minor", FEATURE_GROUP_SCALE, SCALE_MINOR),
+  AppFeature("Penta", FEATURE_GROUP_SCALE, SCALE_PENTATONIC),
+
+  AppFeature("C", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_C),
+  AppFeature("C#", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_Cs),
+  AppFeature("D", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_D),
+  AppFeature("D#", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_Ds),
+  AppFeature("E", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_E),
+  AppFeature("F", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_F),
+  AppFeature("F#", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_Fs),
+  AppFeature("G", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_G),
+  AppFeature("G#", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_Gs),
+  AppFeature("A", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_A),
+  AppFeature("A#", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_As),
+  AppFeature("H", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_H),
 
 
+  AppFeature("PT", FEATURE_GROUP_CHANNEL, CHANNEL_PASSTHRU, true),
+  AppFeature("1", FEATURE_GROUP_CHANNEL, CHANNEL_1),
+  AppFeature("2", FEATURE_GROUP_CHANNEL, CHANNEL_2),
+  AppFeature("3", FEATURE_GROUP_CHANNEL, CHANNEL_3),
+  AppFeature("4", FEATURE_GROUP_CHANNEL, CHANNEL_4),
+  AppFeature("5", FEATURE_GROUP_CHANNEL, CHANNEL_5),
+  AppFeature("6", FEATURE_GROUP_CHANNEL, CHANNEL_6),
+  AppFeature("7", FEATURE_GROUP_CHANNEL, CHANNEL_7),
+  AppFeature("8", FEATURE_GROUP_CHANNEL, CHANNEL_8),
+  AppFeature("9", FEATURE_GROUP_CHANNEL, CHANNEL_9),
+  AppFeature("10", FEATURE_GROUP_CHANNEL, CHANNEL_10),
+  AppFeature("11", FEATURE_GROUP_CHANNEL, CHANNEL_11),
+  AppFeature("12", FEATURE_GROUP_CHANNEL, CHANNEL_12),
+  AppFeature("13", FEATURE_GROUP_CHANNEL, CHANNEL_13),
+  AppFeature("14", FEATURE_GROUP_CHANNEL, CHANNEL_14),
+  AppFeature("15", FEATURE_GROUP_CHANNEL, CHANNEL_15),
+  AppFeature("16", FEATURE_GROUP_CHANNEL, CHANNEL_16)
+};
 
+const uint8_t FEATURECOUNT = 38;
+int iMenuPosition = -3;
 
 
 
@@ -87,8 +136,9 @@ void setup()
   Wire.setClock(400000L);
   oled.begin(&Adafruit128x64, DISPLAY_I2C_ADDRESS);
 
+
   Serial.println("Ready");
-  showInfo(3000);
+  showInfo(1000);
 }
 
 void loop()
@@ -101,9 +151,18 @@ void loop()
 
   iEncoderValue = queryEncoder();
   if(iEncoderValue!=0){
-    Serial.println( iEncoderValue );
+    // New value
+    processMenuNavigation( iEncoderValue );
   }
+
   
+
+  if((muxValue[ENCODER_CLICK==true]) && ( bEncoderClick_old==false )){
+    processEncoderClick();
+    bEncoderClick_old = true;
+  }else if((muxValue[ENCODER_CLICK]==false) && ( bEncoderClick_old )){
+    bEncoderClick_old = false;
+  }
 }
 
 // Poll USB MIDI Controller and send to serial MIDI
@@ -238,4 +297,122 @@ int queryEncoder(){
    }
    encoder0PinALast = muxValue[ENCODER_A];
   return iReturn;
+}
+
+void processEncoderClick(){
+  //Serial.println("processEncoderClick()");
+  // We are at iMenuPosition
+  uint8_t tmpFG = arrFeatures[iMenuPosition].getFeatureGroup();
+  for(uint8_t i=0; i< FEATURECOUNT; i++){
+    if( arrFeatures[i].getFeatureGroup() == tmpFG){
+      arrFeatures[i].select(false);
+    }
+  }
+
+  //If scale passthrough is selected then we deselect all root-note-modes.
+  if(arrFeatures[iMenuPosition].getFeatureGroup()==FEATURE_GROUP_SCALE){
+    if(arrFeatures[iMenuPosition].getFeature()==SCALE_PASSTHRU){
+      for(uint8_t i=0; i< FEATURECOUNT; i++){
+        if( arrFeatures[i].getFeatureGroup() == FEATURE_GROUP_ROOTNOTE){
+          arrFeatures[i].select(false);
+        }
+      }
+    }
+  }
+  arrFeatures[iMenuPosition].select(true);
+  
+  showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
+}
+
+
+
+void processMenuNavigation(int pDirection){
+  //Serial.println("processMenuNavigation()");
+  if(iMenuPosition==-3){  // on the fery first encoder rotation we jump to the first item
+    iMenuPosition = 0;
+  }else{
+    iMenuPosition += pDirection;
+  }
+
+  if(iMenuPosition<0){
+    iMenuPosition = FEATURECOUNT-1;
+  }else if(iMenuPosition>=FEATURECOUNT){
+    iMenuPosition =0;
+  }
+
+  //Serial.println( getMenuItem(iMenuPosition) );
+  //Serial.println( getPreviousMenuItem(iMenuPosition) + " " +  + " " +getMenuItem( iMenuPosition ) + " " + getNextMenuItem(iMenuPosition));
+  showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
+}
+
+void showMenu(String pLine1, String pLine2, String pLine3) {
+  oled.setFont(menuFont);
+  oled.clear();
+  oled.set1X();
+  oled.println( " " + pLine1 );
+  oled.set1X();
+  oled.println( "*" + pLine2 );
+  oled.set1X();
+  oled.println( " " + pLine3 );
+}
+
+String getMenuItem(int pPosition){
+  String sTmp = arrFeatures[pPosition].getText();
+  if(arrFeatures[pPosition].isSelected()){
+    sTmp += "(X)";
+  }
+  return getFeaturePrefix(pPosition) + " " + sTmp;
+}
+
+String getPreviousMenuItem(int pPosition){
+  int tmpPos;
+  String sTmp;
+  if(pPosition<0){ 
+    sTmp = "";
+  }else if(pPosition==0){
+    tmpPos = FEATURECOUNT-1;
+  }else if(pPosition>0){
+    tmpPos = pPosition-1;
+  }
+
+  sTmp= arrFeatures[tmpPos].getText();
+  if(arrFeatures[tmpPos].isSelected()){
+    sTmp += "(X)";
+  }
+
+  return getFeaturePrefix(tmpPos) + " " + sTmp;
+}
+
+String getNextMenuItem(int pPosition){
+  String sTmp = "";
+  int tmpPos;
+  if(pPosition<0){ 
+    tmpPos = 0;
+  }else if((pPosition>=0)&&(pPosition<FEATURECOUNT-1)){
+    tmpPos = pPosition+1;
+  }else if(pPosition==FEATURECOUNT){
+    return "UKU!";
+  }else{
+    tmpPos = 0;
+  }
+
+  sTmp = arrFeatures[tmpPos].getText();
+  if(arrFeatures[tmpPos].isSelected()){
+    sTmp += "(X)";
+  }
+  return getFeaturePrefix(tmpPos) + " " + sTmp;
+}
+
+String getFeaturePrefix(uint8_t pIndex){
+  if(arrFeatures[pIndex].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+    return "Chan";
+  }else if(arrFeatures[pIndex].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
+    return "Velo";
+  }if(arrFeatures[pIndex].getFeatureGroup()==FEATURE_GROUP_SCALE){
+    return "Scale";
+  }if(arrFeatures[pIndex].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
+    return "Root";
+  }else{
+    return "";
+  }
 }
