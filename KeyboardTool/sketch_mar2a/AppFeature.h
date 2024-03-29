@@ -1,3 +1,4 @@
+
 // MenuItem.h
 #ifndef AppFeature_h
 #define AppFeature_h
@@ -20,18 +21,19 @@ const uint8_t SCALE_MAJOR = 1;
 const uint8_t SCALE_MINOR = 2;
 const uint8_t SCALE_PENTATONIC = 3;
 
-const uint8_t ROOTNOTE_C = 0;
-const uint8_t ROOTNOTE_Cs = 1;
-const uint8_t ROOTNOTE_D = 2;
-const uint8_t ROOTNOTE_Ds = 3;
-const uint8_t ROOTNOTE_E = 4;
-const uint8_t ROOTNOTE_F = 5;
-const uint8_t ROOTNOTE_Fs = 6;
-const uint8_t ROOTNOTE_G = 7;
-const uint8_t ROOTNOTE_Gs = 8;
-const uint8_t ROOTNOTE_A = 9;
-const uint8_t ROOTNOTE_As = 10;
-const uint8_t ROOTNOTE_H = 11;
+const uint8_t ROOTNOTE_PASSTHROUGH = 0;
+const uint8_t ROOTNOTE_C = 01;
+const uint8_t ROOTNOTE_Cs = 2;
+const uint8_t ROOTNOTE_D = 3;
+const uint8_t ROOTNOTE_Ds = 4;
+const uint8_t ROOTNOTE_E = 5;
+const uint8_t ROOTNOTE_F = 6;
+const uint8_t ROOTNOTE_Fs = 7;
+const uint8_t ROOTNOTE_G = 8;
+const uint8_t ROOTNOTE_Gs = 9;
+const uint8_t ROOTNOTE_A = 10;
+const uint8_t ROOTNOTE_As = 11;
+const uint8_t ROOTNOTE_H = 12;
 
 
 const uint8_t CHANNEL_PASSTHRU = 0;

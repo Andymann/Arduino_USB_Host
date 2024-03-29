@@ -31,7 +31,7 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.2"
+#define VERSION "0.3"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -62,6 +62,7 @@ AppFeature arrFeatures[] = {
   AppFeature("Minor", FEATURE_GROUP_SCALE, SCALE_MINOR),
   AppFeature("Penta", FEATURE_GROUP_SCALE, SCALE_PENTATONIC),
 
+  AppFeature(" ", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_PASSTHROUGH, true),
   AppFeature("C", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_C),
   AppFeature("C#", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_Cs),
   AppFeature("D", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_D),
@@ -95,9 +96,9 @@ AppFeature arrFeatures[] = {
   AppFeature("16", FEATURE_GROUP_CHANNEL, CHANNEL_16)
 };
 
-const uint8_t FEATURECOUNT = 38;
+const uint8_t FEATURECOUNT = 39;
 int iMenuPosition = -3;
-
+uint8_t iRootNoteOffset=0;
 
 
 void onInit()
@@ -154,7 +155,6 @@ void loop()
     processMenuNavigation( iEncoderValue );
   }
 
-  
 
   if((muxValue[ENCODER_CLICK==true]) && ( bEncoderClick_old==false )){
     processEncoderClick();
@@ -212,8 +212,10 @@ void processNoteOn( uint8_t pBufMidi[] ){
   uint8_t iChannel = pBufMidi[1] - 0x90;
   uint8_t iPitch = pBufMidi[2];
   uint8_t iVelocity = pBufMidi[3];
+  bool bSendOut = true;
   
-  Serial.println("INCOMING: Note ON " + String(iPitch) + "  Channel: " + String(iChannel+1) + "  Velocity: " + String(iVelocity) );
+  
+  //Serial.println("IN: Note ON " + String(iPitch%12) + "  Chan: " + String(iChannel+1) + "  Velo: " + String(iVelocity) );
   //displayIncoming( pBufMidi );
   for(uint8_t i=0; i<FEATURECOUNT; i++){
     if(arrFeatures[i].isSelected()){
@@ -269,12 +271,54 @@ void processNoteOn( uint8_t pBufMidi[] ){
           iChannel=16;
         }
       }
+
+      /*
+        First we need to get the selected ROOT note. this will be taken as an offset: C=0, C#=1, etc.
+        Scale transform: indices based on root note and iRootNoteOffset
+          Major scale: 0 2 4 5 7 8 11
+          Minor scale: 0 2 3 5 7 8 10
+      */
+      if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_SCALE){
+        int tmpNote = (iPitch+12-iRootNoteOffset)%12;
+        if(arrFeatures[i].getFeature()==SCALE_PASSTHRU){
+          // Do nothing
+        }else if(arrFeatures[i].getFeature()==SCALE_MAJOR){
+          //Serial.println("X " + String(iRootNoteOffset)+ ":"+ String((iPitch%12) - iRootNoteOffset) );
+          
+          if( (tmpNote == 0)||
+              (tmpNote == 2)||
+              (tmpNote == 4)||
+              (tmpNote == 5)||
+              (tmpNote == 7)||
+              (tmpNote == 9)||
+              (tmpNote == 11) ){
+                
+            }else{
+              bSendOut = false;
+            }
+        }else if(arrFeatures[i].getFeature()==SCALE_MINOR){
+          if( (tmpNote == 0)||
+              (tmpNote == 2)||
+              (tmpNote == 3)||
+              (tmpNote == 5)||
+              (tmpNote == 7)||
+              (tmpNote == 8)||
+              (tmpNote == 10) ){
+                
+            }else{
+              bSendOut = false;
+            }
+        }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC){
+
+        }
+      }
     }
   }
   
-
-  Serial.println("OUTGOING: Note ON " + String(iPitch) + "  Channel: " + String(iChannel) + "  Velocity: " + String(iVelocity) );
-
+  if(bSendOut){
+    Serial.println("OUT: Note ON " + String(iPitch) + "  Chan: " + String(iChannel) + "  Velo: " + String(iVelocity) );
+  }
+  
 }
 
 void processCC( uint8_t pBufMidi[] ){
@@ -367,19 +411,32 @@ void processEncoderClick(){
     }
   }
 
-  // If scale passthrough is selected then we deselect all root-note-modes.
-  // ToDO: Markings on PT when a Root-note is selected.
+  // If scale passthrough is selected then we select root-note-passthrough.
   if(arrFeatures[iMenuPosition].getFeatureGroup()==FEATURE_GROUP_SCALE){
     if(arrFeatures[iMenuPosition].getFeature()==SCALE_PASSTHRU){
       for(uint8_t i=0; i< FEATURECOUNT; i++){
         if( arrFeatures[i].getFeatureGroup() == FEATURE_GROUP_ROOTNOTE){
-          arrFeatures[i].select(false);
+          if(arrFeatures[i].getFeature()==ROOTNOTE_PASSTHROUGH){
+            arrFeatures[i].select(true);
+          }else{
+            arrFeatures[i].select(false);
+          }
         }
       }
     }
   }
+
   arrFeatures[iMenuPosition].select(true);
+
   
+  if(arrFeatures[iMenuPosition].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
+    if(arrFeatures[iMenuPosition].getFeature() > ROOTNOTE_PASSTHROUGH){
+      iRootNoteOffset = arrFeatures[iMenuPosition].getFeature()-1; // <-- megapfiffig!
+      //Serial.println("RootNoteOffset:" + String(iRootNoteOffset));
+    }
+  }
+  
+
   showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
 }
 
