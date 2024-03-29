@@ -1,10 +1,10 @@
-
 // MenuItem.h
 #ifndef AppFeature_h
 #define AppFeature_h
 
 #include <Arduino.h>
 
+const uint8_t FEATURE_GROUP_PLACEHOLDER = 0;
 const uint8_t FEATURE_GROUP_VELOCITY = 1;
 const uint8_t FEATURE_GROUP_SCALE = 2;
 const uint8_t FEATURE_GROUP_ROOTNOTE = 4;

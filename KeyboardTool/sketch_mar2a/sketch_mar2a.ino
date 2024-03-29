@@ -93,10 +93,11 @@ AppFeature arrFeatures[] = {
   AppFeature("13", FEATURE_GROUP_CHANNEL, CHANNEL_13),
   AppFeature("14", FEATURE_GROUP_CHANNEL, CHANNEL_14),
   AppFeature("15", FEATURE_GROUP_CHANNEL, CHANNEL_15),
-  AppFeature("16", FEATURE_GROUP_CHANNEL, CHANNEL_16)
+  AppFeature("16", FEATURE_GROUP_CHANNEL, CHANNEL_16),
+  AppFeature(" ", FEATURE_GROUP_PLACEHOLDER, 0)
 };
 
-const uint8_t FEATURECOUNT = 39;
+const uint8_t FEATURECOUNT = 40;
 int iMenuPosition = -3;
 uint8_t iRootNoteOffset=0;
 
@@ -426,8 +427,9 @@ void processEncoderClick(){
     }
   }
 
-  arrFeatures[iMenuPosition].select(true);
-
+  if(  arrFeatures[iMenuPosition].getFeatureGroup() != FEATURE_GROUP_PLACEHOLDER ){
+    arrFeatures[iMenuPosition].select(true);
+  }
   
   if(arrFeatures[iMenuPosition].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
     if(arrFeatures[iMenuPosition].getFeature() > ROOTNOTE_PASSTHROUGH){
@@ -436,7 +438,6 @@ void processEncoderClick(){
     }
   }
   
-
   showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
 }
 
@@ -459,13 +460,17 @@ void processMenuNavigation(int pDirection){
 }
 
 void showMenu(String pLine1, String pLine2, String pLine3) {
-  oled.setFont(menuFont);
+  //oled.setFont(menuFont);
   oled.clear();
-  oled.set1X();
+  oled.setFont(TimesNewRoman16);
+  //oled.set2X();
+  //oled.set1X();
   oled.println( " " + pLine1 );
-  oled.set1X();
+  //oled.set1X();
+   oled.setFont(TimesNewRoman16_bold);
   oled.println( "*" + pLine2 );
-  oled.set1X();
+  //oled.set1X();
+   oled.setFont(TimesNewRoman16);
   oled.println( " " + pLine3 );
 }
 
