@@ -32,7 +32,7 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.4"
+#define VERSION "0.5"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -105,9 +105,9 @@ const uint8_t FEATURECOUNT = 40;
 int iMenuPosition = -3;
 uint8_t iRootNoteOffset=0;
 
-Button2 btnHelper_PRESET1;
-Button2 btnHelper_PRESET2;
-Button2 btnHelper_PRESET3;
+//Button2 btnHelper_PRESET1;
+//Button2 btnHelper_PRESET2;
+//Button2 btnHelper_PRESET3;
 
 void onInit()
 {
@@ -146,7 +146,7 @@ void setup()
   Wire.begin();
   Wire.setClock(400000L);
   oled.begin(&Adafruit128x64, DISPLAY_I2C_ADDRESS);
-
+/*
   btnHelper_PRESET1.begin(VIRTUAL_PIN,INPUT, false);
   btnHelper_PRESET1.setButtonStateFunction(preset1ButtonStateHandler);
   btnHelper_PRESET1.setLongClickTime( LONGCLICKTIMEMS );
@@ -167,7 +167,7 @@ void setup()
   btnHelper_PRESET3.setClickHandler(preset3ClickHandler);
   btnHelper_PRESET3.setLongClickDetectedHandler(preset3LongClickDetected);
   btnHelper_PRESET3.setChangedHandler(preset3ChangeHandler);  // Falls externer sync via sysex
-
+*/
   //SerialPrintln("ok");
   showInfo(1000);
   digitalWrite(LED, 0);
@@ -176,9 +176,9 @@ void setup()
 void loop()
 {
   readMux();
-  btnHelper_PRESET1.loop();
-  btnHelper_PRESET2.loop();
-  btnHelper_PRESET3.loop();
+//  btnHelper_PRESET1.loop();
+//  btnHelper_PRESET2.loop();
+//  btnHelper_PRESET3.loop();
 
 
   Usb.Task();
@@ -269,6 +269,8 @@ void processNoteOn( uint8_t pBufMidi[] ){
           }if(arrFeatures[i].getFeature()==VELOCITY_RANDOM){
             iVelocity=(int)random(128);
           }
+        }else{
+          
         }
       }
       if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
@@ -353,6 +355,14 @@ void processNoteOn( uint8_t pBufMidi[] ){
   }
   
   if(bSendOut){
+    if( iVelocity>0){
+      digitalWrite(LED, 1);
+    }else{
+      digitalWrite(LED, 0);
+    }
+    
+
+    
     //SerialPrintln("OUT: Note ON " + String(iPitch) + "  Chan: " + String(iChannel) + "  Velo: " + String(iVelocity) );
     Serial.write( byte(0x90 + iChannel-1) );
     Serial.write( byte(iPitch) );
