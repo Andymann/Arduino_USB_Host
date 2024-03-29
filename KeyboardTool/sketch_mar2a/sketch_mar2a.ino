@@ -25,15 +25,14 @@
 
 //Define your font here. Default font: lcd5x7
 #define menuFont ZevvPeep8x16
-#define fontW 8
-#define fontH 16
+
 
 
 USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.3"
+#define VERSION "0.4"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -51,6 +50,9 @@ bool muxValue[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // The va
 
 int iEncoderValue = 0;
 bool bEncoderClick_old = false;
+
+#define LONGCLICKTIMEMS 2000
+#define LED 6
 
 AppFeature arrFeatures[] = {
   AppFeature("PT", FEATURE_GROUP_VELOCITY, VELOCITY_PASSTHRU, true),
@@ -103,24 +105,29 @@ const uint8_t FEATURECOUNT = 40;
 int iMenuPosition = -3;
 uint8_t iRootNoteOffset=0;
 
+Button2 btnHelper_PRESET1;
+Button2 btnHelper_PRESET2;
+Button2 btnHelper_PRESET3;
 
 void onInit()
 {
   char buf[20];
   uint16_t vid = Midi.idVendor();
   uint16_t pid = Midi.idProduct();
-  sprintf(buf, "VID:%04X, PID:%04X", vid, pid);
-  SerialPrintln(buf); 
+  //sprintf(buf, "VID:%04X, PID:%04X", vid, pid);
+  //SerialPrintln(buf); 
 }
 
 void setup()
 {
   randomSeed(analogRead(1));
   pinMode(DEMUX_PIN, INPUT);
+  pinMode(LED, OUTPUT);
   Serial.begin(31250);
   
+  digitalWrite(LED, 1);
   while(!Serial);
-  SerialPrintln("Serial init'd");
+  //SerialPrintln("Serial init'd");
     pinMode(MAX_GPX, INPUT);
     pinMode(MAX_RESET, OUTPUT);
     digitalWrite(MAX_RESET, LOW);
@@ -140,14 +147,40 @@ void setup()
   Wire.setClock(400000L);
   oled.begin(&Adafruit128x64, DISPLAY_I2C_ADDRESS);
 
+  btnHelper_PRESET1.begin(VIRTUAL_PIN,INPUT, false);
+  btnHelper_PRESET1.setButtonStateFunction(preset1ButtonStateHandler);
+  btnHelper_PRESET1.setLongClickTime( LONGCLICKTIMEMS );
+  btnHelper_PRESET1.setClickHandler(preset1ClickHandler);
+  btnHelper_PRESET1.setLongClickDetectedHandler(preset1LongClickDetected);
+  btnHelper_PRESET1.setChangedHandler(preset1ChangeHandler);  // Falls externer sync via sysex
 
-  SerialPrintln("Ready");
+  btnHelper_PRESET2.begin(VIRTUAL_PIN,INPUT, false);
+  btnHelper_PRESET2.setButtonStateFunction(preset2ButtonStateHandler);
+  btnHelper_PRESET2.setLongClickTime( LONGCLICKTIMEMS );
+  btnHelper_PRESET2.setClickHandler(preset2ClickHandler);
+  btnHelper_PRESET2.setLongClickDetectedHandler(preset2LongClickDetected);
+  btnHelper_PRESET2.setChangedHandler(preset2ChangeHandler);  // Falls externer sync via sysex
+
+  btnHelper_PRESET3.begin(VIRTUAL_PIN,INPUT, false);
+  btnHelper_PRESET3.setButtonStateFunction(preset3ButtonStateHandler);
+  btnHelper_PRESET3.setLongClickTime( LONGCLICKTIMEMS );
+  btnHelper_PRESET3.setClickHandler(preset3ClickHandler);
+  btnHelper_PRESET3.setLongClickDetectedHandler(preset3LongClickDetected);
+  btnHelper_PRESET3.setChangedHandler(preset3ChangeHandler);  // Falls externer sync via sysex
+
+  //SerialPrintln("ok");
   showInfo(1000);
+  digitalWrite(LED, 0);
 }
 
 void loop()
 {
   readMux();
+  btnHelper_PRESET1.loop();
+  btnHelper_PRESET2.loop();
+  btnHelper_PRESET3.loop();
+
+
   Usb.Task();
   if ( Midi ) {
     MIDI_poll();
@@ -537,6 +570,60 @@ String getFeaturePrefix(uint8_t pIndex){
     return "";
   }
 }
+
+byte preset1ButtonStateHandler() {
+  bool b = muxValue[3];
+  return b == 0 ? false : true;
+}
+
+void preset1ClickHandler(Button2& btn) {
+
+}
+
+void preset1LongClickDetected(Button2& btn) {
+
+}
+
+void preset1ChangeHandler( Button2& btn ){
+
+}
+
+byte preset2ButtonStateHandler() {
+  bool b = muxValue[3];
+  return b == 0 ? false : true;
+}
+
+void preset2ClickHandler(Button2& btn) {
+
+}
+
+void preset2LongClickDetected(Button2& btn) {
+
+}
+
+void preset2ChangeHandler( Button2& btn ){
+
+}
+
+byte preset3ButtonStateHandler() {
+  bool b = muxValue[3];
+  return b == 0 ? false : true;
+}
+
+void preset3ClickHandler(Button2& btn) {
+
+}
+
+void preset3LongClickDetected(Button2& btn) {
+
+}
+
+void preset3ChangeHandler( Button2& btn ){
+
+}
+
+
+
 
 void SerialPrintln(String p){
  //Serial.println(p);
