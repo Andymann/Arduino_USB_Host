@@ -1,3 +1,5 @@
+
+
 /*
   KeyboardTool
   Based on mini USB host shield
@@ -18,8 +20,8 @@
 #include "SSD1306AsciiWire.h"
 #include <light_CD74HC4067.h>
 #include <Button2.h>
-
 #include "AppFeature.h"
+
 
 //Define your font here. Default font: lcd5x7
 #define menuFont ZevvPeep8x16
@@ -108,16 +110,17 @@ void onInit()
   uint16_t vid = Midi.idVendor();
   uint16_t pid = Midi.idProduct();
   sprintf(buf, "VID:%04X, PID:%04X", vid, pid);
-  Serial.println(buf); 
+  SerialPrintln(buf); 
 }
 
 void setup()
 {
   randomSeed(analogRead(1));
   pinMode(DEMUX_PIN, INPUT);
-  Serial.begin(115200);
+  Serial.begin(31250);
+  
   while(!Serial);
-  Serial.println("Serial init'd");
+  SerialPrintln("Serial init'd");
     pinMode(MAX_GPX, INPUT);
     pinMode(MAX_RESET, OUTPUT);
     digitalWrite(MAX_RESET, LOW);
@@ -138,7 +141,7 @@ void setup()
   oled.begin(&Adafruit128x64, DISPLAY_I2C_ADDRESS);
 
 
-  Serial.println("Ready");
+  SerialPrintln("Ready");
   showInfo(1000);
 }
 
@@ -200,9 +203,9 @@ void printData(uint8_t pBufMidi[]){
   char buf[16];
   for (int i = 0; i < 16; i++) {
     sprintf(buf, " %02X", pBufMidi[i]);
-    Serial.print(buf);
+    SerialPrintln(buf);
   }
-  Serial.println("");
+  SerialPrintln("");
 }
 
 void processNoteOff( uint8_t pBufMidi[] ){
@@ -216,7 +219,7 @@ void processNoteOn( uint8_t pBufMidi[] ){
   bool bSendOut = true;
   
   
-  //Serial.println("IN: Note ON " + String(iPitch%12) + "  Chan: " + String(iChannel+1) + "  Velo: " + String(iVelocity) );
+  //SerialPrintln("IN: Note ON " + String(iPitch%12) + "  Chan: " + String(iChannel+1) + "  Velo: " + String(iVelocity) );
   //displayIncoming( pBufMidi );
   for(uint8_t i=0; i<FEATURECOUNT; i++){
     if(arrFeatures[i].isSelected()){
@@ -284,7 +287,7 @@ void processNoteOn( uint8_t pBufMidi[] ){
         if(arrFeatures[i].getFeature()==SCALE_PASSTHRU){
           // Do nothing
         }else if(arrFeatures[i].getFeature()==SCALE_MAJOR){
-          //Serial.println("X " + String(iRootNoteOffset)+ ":"+ String((iPitch%12) - iRootNoteOffset) );
+          //SerialPrintln("X " + String(iRootNoteOffset)+ ":"+ String((iPitch%12) - iRootNoteOffset) );
           
           if( (tmpNote == 0)||
               (tmpNote == 2)||
@@ -317,7 +320,10 @@ void processNoteOn( uint8_t pBufMidi[] ){
   }
   
   if(bSendOut){
-    Serial.println("OUT: Note ON " + String(iPitch) + "  Chan: " + String(iChannel) + "  Velo: " + String(iVelocity) );
+    //SerialPrintln("OUT: Note ON " + String(iPitch) + "  Chan: " + String(iChannel) + "  Velo: " + String(iVelocity) );
+    Serial.write( byte(0x90 + iChannel-1) );
+    Serial.write( byte(iPitch) );
+    Serial.write( byte(iVelocity) );
   }
   
 }
@@ -326,7 +332,7 @@ void processCC( uint8_t pBufMidi[] ){
   uint8_t iChannel = pBufMidi[1] - 0xB0;
   uint8_t iController = pBufMidi[2];
   uint8_t iValue = pBufMidi[3];
-  //Serial.println("CC. Channel:" + String(iChannel) + " CC:" + String(iController)+ " Value:" + String(iValue) );
+  //SerialPrintln("CC. Channel:" + String(iChannel) + " CC:" + String(iController)+ " Value:" + String(iValue) );
 }
 
 void showInfo(int pWaitMS) {
@@ -361,7 +367,6 @@ void readMux() {
     int val = digitalRead(DEMUX_PIN);
     muxValue[i] = val;
   }
-  //Serial.println(String(muxValue[0]));
 }
 
 
@@ -403,7 +408,6 @@ int queryEncoder(){
 }
 
 void processEncoderClick(){
-  //Serial.println("processEncoderClick()");
   // We are at iMenuPosition
   uint8_t tmpFG = arrFeatures[iMenuPosition].getFeatureGroup();
   for(uint8_t i=0; i< FEATURECOUNT; i++){
@@ -434,7 +438,6 @@ void processEncoderClick(){
   if(arrFeatures[iMenuPosition].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
     if(arrFeatures[iMenuPosition].getFeature() > ROOTNOTE_PASSTHROUGH){
       iRootNoteOffset = arrFeatures[iMenuPosition].getFeature()-1; // <-- megapfiffig!
-      //Serial.println("RootNoteOffset:" + String(iRootNoteOffset));
     }
   }
   
@@ -533,4 +536,8 @@ String getFeaturePrefix(uint8_t pIndex){
   }else{
     return "";
   }
+}
+
+void SerialPrintln(String p){
+ //Serial.println(p);
 }
