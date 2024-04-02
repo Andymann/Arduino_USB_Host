@@ -115,7 +115,7 @@ AppFeature arrFeatures[] = {
   AppFeature(" ", FEATURE_GROUP_PLACEHOLDER, 0)
 };
 
-const uint8_t FEATURECOUNT = 41;
+const uint8_t FEATURECOUNT = 42;
 int iMenuPosition = -3;
 uint8_t iRootNoteOffset=0;
 
