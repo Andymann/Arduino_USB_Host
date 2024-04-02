@@ -31,7 +31,7 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.7"
+#define VERSION "0.8"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -79,7 +79,7 @@ AppFeature arrFeatures[] = {
   AppFeature("Penta Maj", FEATURE_GROUP_SCALE, SCALE_PENTATONIC_MAJOR),
   AppFeature("Penta Min", FEATURE_GROUP_SCALE, SCALE_PENTATONIC_MINOR),
 
-  AppFeature("(None)", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_PASSTHROUGH, true),
+  AppFeature("None", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_PASSTHROUGH, true),
   AppFeature("C", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_C),
   AppFeature("C#", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_Cs),
   AppFeature("D", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_D),
@@ -252,6 +252,7 @@ void processData( uint8_t pBufMidi[] ){
     break;
   default:
     // Statement(s)
+    processOther( pBufMidi );
     break; // Wird nicht benötigt, wenn Statement(s) vorhanden sind
 }
 
@@ -469,6 +470,13 @@ void processNoteOn( uint8_t pBufMidi[] ){
 void processCC( uint8_t pBufMidi[] ){
   uint8_t iChannel = processMidi_Channel(pBufMidi, 0xB0);
   Serial.write( byte(0xB0 + iChannel) );
+  Serial.write( pBufMidi[2] );
+  Serial.write( pBufMidi[3] );
+}
+
+void processOther( uint8_t pBufMidi[] ){
+
+  Serial.write( pBufMidi[1] );
   Serial.write( pBufMidi[2] );
   Serial.write( pBufMidi[3] );
 }
