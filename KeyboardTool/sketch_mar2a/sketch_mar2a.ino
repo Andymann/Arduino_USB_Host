@@ -765,24 +765,24 @@ void savePreset(uint8_t pPresetIndex){
 
   for(uint8_t j=0; j<FEATURECOUNT; j++){
     if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_SCALE){
-      if(arrFeatures[j+iFeaturecount_velocity].isSelected()==true){
-        EEPROM.update(iAddress+1, j+iFeaturecount_velocity);
+      if(arrFeatures[j].isSelected()==true){
+        EEPROM.update(iAddress+1, j-iFeaturecount_velocity);
       }
     }
   }
 
   for(uint8_t j=0; j<FEATURECOUNT; j++){
     if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
-      if(arrFeatures[j+iFeaturecount_velocity + iFeaturecount_scale].isSelected()==true){
-        EEPROM.update(iAddress+2, j + iFeaturecount_velocity + iFeaturecount_scale );
+      if(arrFeatures[j].isSelected()==true){
+        EEPROM.update(iAddress+2, j - iFeaturecount_velocity - iFeaturecount_scale );
       }
     }
   }
 
   for(uint8_t j=0; j<FEATURECOUNT; j++){
     if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
-      if(arrFeatures[j+iFeaturecount_velocity + iFeaturecount_scale + iFeaturecount_rootnote].isSelected()==true){
-        EEPROM.update(iAddress+3, j + iFeaturecount_velocity + iFeaturecount_scale + iFeaturecount_rootnote);
+      if(arrFeatures[j].isSelected()==true){
+        EEPROM.update(iAddress+3, j - iFeaturecount_velocity - iFeaturecount_scale - iFeaturecount_rootnote);
       }
     }
   }
