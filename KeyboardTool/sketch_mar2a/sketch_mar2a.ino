@@ -31,7 +31,7 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.8"
+#define VERSION "0.9"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -72,6 +72,7 @@ AppFeature arrFeatures[] = {
   AppFeature("Fix100", FEATURE_GROUP_VELOCITY, VELOCITY_FIX_100),
   AppFeature("Fix127", FEATURE_GROUP_VELOCITY, VELOCITY_FIX_127),
   AppFeature("Rnd", FEATURE_GROUP_VELOCITY, VELOCITY_RANDOM),
+  AppFeature("Rnd100", FEATURE_GROUP_VELOCITY, VELOCITY_RANDOM_100),
   
   AppFeature("Scale PT", FEATURE_GROUP_SCALE, SCALE_PASSTHRU, true),
   AppFeature("Major", FEATURE_GROUP_SCALE, SCALE_MAJOR),
@@ -292,6 +293,8 @@ uint8_t processMidi_Velocity(uint8_t pBufMidi[]){
             iVelocity = 127;
           }if(arrFeatures[i].getFeature()==VELOCITY_RANDOM){
             iVelocity=(int)random(128);
+          }else if(arrFeatures[i].getFeature()==VELOCITY_RANDOM_100){
+            iVelocity=(int)(95+random(11));
           }
         }else{
           

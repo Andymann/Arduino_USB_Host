@@ -13,8 +13,9 @@ const uint8_t FEATURE_GROUP_CHANNEL = 8;
 const uint8_t VELOCITY_PASSTHRU = 0;
 const uint8_t VELOCITY_FIX_63 = 1;
 const uint8_t VELOCITY_FIX_100 = 2;
-const uint8_t VELOCITY_FIX_127 = 3;
-const uint8_t VELOCITY_RANDOM = 4;
+const uint8_t VELOCITY_RANDOM_100 = 3;
+const uint8_t VELOCITY_FIX_127 = 4;
+const uint8_t VELOCITY_RANDOM = 5;
 
 const uint8_t SCALE_PASSTHRU = 0;
 const uint8_t SCALE_MAJOR = 1;
