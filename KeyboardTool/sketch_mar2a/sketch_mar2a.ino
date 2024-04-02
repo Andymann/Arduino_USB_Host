@@ -19,9 +19,9 @@
 #include "SSD1306Ascii.h"
 #include "SSD1306AsciiWire.h"
 #include <light_CD74HC4067.h>
-#include <Button2.h>
+//#include <Button2.h>
 #include "AppFeature.h"
-
+#include <EEPROM.h>
 
 //Define your font here. Default font: lcd5x7
 #define menuFont ZevvPeep8x16
@@ -32,13 +32,27 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.5"
+#define VERSION "0.6"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
+#define BUTTON_0 0
+#define BUTTON_1 1
+#define BUTTON_2 2
+#define BUTTON_3 3
 #define ENCODER_A 13
 #define ENCODER_B 14
 #define ENCODER_CLICK 12
+
+const uint8_t PRESET_0_BASE_ADDRESS = 10;
+const uint8_t PRESET_1_BASE_ADDRESS = 20;
+const uint8_t PRESET_2_BASE_ADDRESS = 30;
+const uint8_t PRESET_3_BASE_ADDRESS = 40;
+
+bool bButton_0_old = false;
+bool bButton_1_old = false;
+bool bButton_2_old = false;
+bool bButton_3_old = false;
 
 // 0X3C+SA0 - 0x3C or 0x3D
 #define DISPLAY_I2C_ADDRESS 0x3C
@@ -51,7 +65,6 @@ bool muxValue[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // The va
 int iEncoderValue = 0;
 bool bEncoderClick_old = false;
 
-#define LONGCLICKTIMEMS 2000
 #define LED 6
 
 AppFeature arrFeatures[] = {
@@ -105,9 +118,6 @@ const uint8_t FEATURECOUNT = 40;
 int iMenuPosition = -3;
 uint8_t iRootNoteOffset=0;
 
-//Button2 btnHelper_PRESET1;
-//Button2 btnHelper_PRESET2;
-//Button2 btnHelper_PRESET3;
 
 void onInit()
 {
@@ -120,6 +130,15 @@ void onInit()
 
 void setup()
 {
+/*
+  // Testweise ein preset speichern
+  EEPROM.update(10, byte(0x02));
+  EEPROM.update(11, byte(0x02));
+  EEPROM.update(12, byte(0x02));
+  EEPROM.update(13, byte(0x02));
+*/
+
+
   randomSeed(analogRead(1));
   pinMode(DEMUX_PIN, INPUT);
   pinMode(LED, OUTPUT);
@@ -146,28 +165,7 @@ void setup()
   Wire.begin();
   Wire.setClock(400000L);
   oled.begin(&Adafruit128x64, DISPLAY_I2C_ADDRESS);
-/*
-  btnHelper_PRESET1.begin(VIRTUAL_PIN,INPUT, false);
-  btnHelper_PRESET1.setButtonStateFunction(preset1ButtonStateHandler);
-  btnHelper_PRESET1.setLongClickTime( LONGCLICKTIMEMS );
-  btnHelper_PRESET1.setClickHandler(preset1ClickHandler);
-  btnHelper_PRESET1.setLongClickDetectedHandler(preset1LongClickDetected);
-  btnHelper_PRESET1.setChangedHandler(preset1ChangeHandler);  // Falls externer sync via sysex
 
-  btnHelper_PRESET2.begin(VIRTUAL_PIN,INPUT, false);
-  btnHelper_PRESET2.setButtonStateFunction(preset2ButtonStateHandler);
-  btnHelper_PRESET2.setLongClickTime( LONGCLICKTIMEMS );
-  btnHelper_PRESET2.setClickHandler(preset2ClickHandler);
-  btnHelper_PRESET2.setLongClickDetectedHandler(preset2LongClickDetected);
-  btnHelper_PRESET2.setChangedHandler(preset2ChangeHandler);  // Falls externer sync via sysex
-
-  btnHelper_PRESET3.begin(VIRTUAL_PIN,INPUT, false);
-  btnHelper_PRESET3.setButtonStateFunction(preset3ButtonStateHandler);
-  btnHelper_PRESET3.setLongClickTime( LONGCLICKTIMEMS );
-  btnHelper_PRESET3.setClickHandler(preset3ClickHandler);
-  btnHelper_PRESET3.setLongClickDetectedHandler(preset3LongClickDetected);
-  btnHelper_PRESET3.setChangedHandler(preset3ChangeHandler);  // Falls externer sync via sysex
-*/
   //SerialPrintln("ok");
   showInfo(1000);
   digitalWrite(LED, 0);
@@ -176,10 +174,50 @@ void setup()
 void loop()
 {
   readMux();
-//  btnHelper_PRESET1.loop();
-//  btnHelper_PRESET2.loop();
-//  btnHelper_PRESET3.loop();
 
+  if( (bButton_0_old==false) && (muxValue[BUTTON_0]==true) ){
+
+    SerialPrintln("btn 0");
+    //loadPReset(0);
+
+    bButton_0_old = true;
+  }else{
+    bButton_0_old = muxValue[BUTTON_0];
+  }
+
+  if( (bButton_1_old==false) && (muxValue[BUTTON_1]==true) ){
+    if(muxValue[BUTTON_0]==false){
+      loadPreset(0);
+    }else{
+      savePreset(0);
+    }
+    
+    bButton_1_old = true;
+  }else{
+    bButton_1_old = muxValue[BUTTON_1];
+  }
+
+  if( (bButton_2_old==false) && (muxValue[BUTTON_2]==true) ){
+    if(muxValue[BUTTON_0]==false){
+      loadPreset(1);
+    }else{
+      savePreset(1);
+    }
+    bButton_2_old = true;
+  }else{
+    bButton_2_old = muxValue[BUTTON_2];
+  }
+
+  if( (bButton_3_old==false) && (muxValue[BUTTON_3]==true) ){
+    if(muxValue[BUTTON_0]==false){
+      loadPreset(2);
+    }else{
+      savePreset(2);
+    }
+    bButton_3_old = true;
+  }else{
+    bButton_3_old = muxValue[BUTTON_3];
+  }
 
   Usb.Task();
   if ( Midi ) {
@@ -193,7 +231,7 @@ void loop()
   }
 
 
-  if((muxValue[ENCODER_CLICK==true]) && ( bEncoderClick_old==false )){
+  if((muxValue[ENCODER_CLICK]==true) && ( bEncoderClick_old==false )){
     processEncoderClick();
     bEncoderClick_old = true;
   }else if((muxValue[ENCODER_CLICK]==false) && ( bEncoderClick_old )){
@@ -236,9 +274,9 @@ void printData(uint8_t pBufMidi[]){
   char buf[16];
   for (int i = 0; i < 16; i++) {
     sprintf(buf, " %02X", pBufMidi[i]);
-    SerialPrintln(buf);
+    //SerialPrintln(buf);
   }
-  SerialPrintln("");
+  //SerialPrintln("");
 }
 
 void processNoteOff( uint8_t pBufMidi[] ){
@@ -451,6 +489,11 @@ int queryEncoder(){
 }
 
 void processEncoderClick(){
+
+  if(muxValue[BUTTON_0]==true){
+
+
+  }
   // We are at iMenuPosition
   uint8_t tmpFG = arrFeatures[iMenuPosition].getFeatureGroup();
   for(uint8_t i=0; i< FEATURECOUNT; i++){
@@ -581,60 +624,192 @@ String getFeaturePrefix(uint8_t pIndex){
   }
 }
 
-byte preset1ButtonStateHandler() {
-  bool b = muxValue[3];
-  return b == 0 ? false : true;
-}
-
-void preset1ClickHandler(Button2& btn) {
-
-}
-
-void preset1LongClickDetected(Button2& btn) {
-
-}
-
-void preset1ChangeHandler( Button2& btn ){
-
-}
-
-byte preset2ButtonStateHandler() {
-  bool b = muxValue[3];
-  return b == 0 ? false : true;
-}
-
-void preset2ClickHandler(Button2& btn) {
-
-}
-
-void preset2LongClickDetected(Button2& btn) {
-
-}
-
-void preset2ChangeHandler( Button2& btn ){
-
-}
-
-byte preset3ButtonStateHandler() {
-  bool b = muxValue[3];
-  return b == 0 ? false : true;
-}
-
-void preset3ClickHandler(Button2& btn) {
-
-}
-
-void preset3LongClickDetected(Button2& btn) {
-
-}
-
-void preset3ChangeHandler( Button2& btn ){
-
-}
-
-
-
 
 void SerialPrintln(String p){
- //Serial.println(p);
+  Serial.println(p);
 }
+
+/*
+  Presets are organized byte-wise: The selected item of every individual feature_group is stored in 
+  a dedicated byte. As of version 0.5 that's 4 bytes for the complete config. Order of storing:
+  FEATURE_GROUP_VELOCITY, SCALE, ROOTNOTE, CHANNEL.
+
+  The byte's value marks the INDEX of the selected item. All bytes 0 means: 
+  Every first item of every FEATURE_GROUP is selected (default).
+
+*/
+void loadPreset(uint8_t pPresetIndex){
+
+
+  uint8_t iAddress;
+
+  if(pPresetIndex == 0){
+    iAddress = PRESET_0_BASE_ADDRESS;
+  }else if(pPresetIndex == 1){
+    iAddress = PRESET_1_BASE_ADDRESS;
+  }else if(pPresetIndex == 2){
+    iAddress = PRESET_2_BASE_ADDRESS;
+  }else if(pPresetIndex == 3){
+    iAddress = PRESET_3_BASE_ADDRESS;
+  }
+
+  // How many items of every feature do we have?
+  uint8_t iFeaturecount_velocity = 0;
+  uint8_t iFeaturecount_scale = 0;
+  uint8_t iFeaturecount_rootnote = 0;
+  uint8_t iFeaturecount_channel = 0;
+
+  for(uint8_t i=0; i<FEATURECOUNT; i++){
+    if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
+      iFeaturecount_velocity++;
+    }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_SCALE){
+      iFeaturecount_scale++;
+    }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
+      iFeaturecount_rootnote++;
+    }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+      iFeaturecount_channel++;
+    }
+  }
+
+
+  uint8_t val;
+
+  val = EEPROM.read(iAddress + 0);
+  if(val!=255){ // a.k.a. hier wurde schonmal etwas gespeichert
+    for(uint8_t j=0; j<FEATURECOUNT; j++){
+      if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
+        arrFeatures[j].select(false);
+      }
+    }
+    arrFeatures[val + 0].select(true);
+  }
+
+  val = EEPROM.read(iAddress + 1);
+  if(val!=255){ 
+    for(uint8_t j=0; j<FEATURECOUNT; j++){
+      if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_SCALE){
+        arrFeatures[j].select(false);
+      }
+    }
+    arrFeatures[val + iFeaturecount_velocity].select(true);
+  }
+
+  val = EEPROM.read(iAddress + 2);
+  if(val!=255){ 
+    for(uint8_t j=0; j<FEATURECOUNT; j++){
+      if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
+        arrFeatures[j].select(false);
+      }
+    }
+    arrFeatures[val + iFeaturecount_velocity + iFeaturecount_scale].select(true);
+  }
+
+  val = EEPROM.read(iAddress + 3);
+  if(val!=255){ 
+    for(uint8_t j=0; j<FEATURECOUNT; j++){
+      if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+        arrFeatures[j].select(false);
+      }
+    }
+    arrFeatures[val + iFeaturecount_velocity + iFeaturecount_scale + iFeaturecount_rootnote].select(true);
+  }
+
+  //SerialPrintln("preset loaded");
+  showMenu("", "Load Preset " + String(pPresetIndex), "");
+  delay(1000);
+  showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
+
+}
+
+
+
+
+
+void savePreset(uint8_t pPresetIndex){
+  uint8_t iAddress;
+  if(pPresetIndex == 0){
+    iAddress = PRESET_0_BASE_ADDRESS;
+  }else if(pPresetIndex == 1){
+    iAddress = PRESET_1_BASE_ADDRESS;
+  }else if(pPresetIndex == 2){
+    iAddress = PRESET_2_BASE_ADDRESS;
+  }else if(pPresetIndex == 3){
+    iAddress = PRESET_3_BASE_ADDRESS;
+  }
+
+  // How many items of every feature do we have?
+  uint8_t iFeaturecount_velocity = 0;
+  uint8_t iFeaturecount_scale = 0;
+  uint8_t iFeaturecount_rootnote = 0;
+  uint8_t iFeaturecount_channel = 0;
+
+  for(uint8_t i=0; i<FEATURECOUNT; i++){
+    if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
+      iFeaturecount_velocity++;
+    }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_SCALE){
+      iFeaturecount_scale++;
+    }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
+      iFeaturecount_rootnote++;
+    }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+      iFeaturecount_channel++;
+    }
+  }
+
+  for(uint8_t j=0; j<FEATURECOUNT; j++){
+    if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
+      if(arrFeatures[j+0].isSelected()==true){
+        EEPROM.update(iAddress+0, j);
+      }
+    }
+  }
+
+  for(uint8_t j=0; j<FEATURECOUNT; j++){
+    if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_SCALE){
+      if(arrFeatures[j+iFeaturecount_velocity].isSelected()==true){
+        EEPROM.update(iAddress+1, j+iFeaturecount_velocity);
+      }
+    }
+  }
+
+  for(uint8_t j=0; j<FEATURECOUNT; j++){
+    if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
+      if(arrFeatures[j+iFeaturecount_velocity + iFeaturecount_scale].isSelected()==true){
+        EEPROM.update(iAddress+2, j + iFeaturecount_velocity + iFeaturecount_scale );
+      }
+    }
+  }
+
+  for(uint8_t j=0; j<FEATURECOUNT; j++){
+    if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+      if(arrFeatures[j+iFeaturecount_velocity + iFeaturecount_scale + iFeaturecount_rootnote].isSelected()==true){
+        EEPROM.update(iAddress+3, j + iFeaturecount_velocity + iFeaturecount_scale + iFeaturecount_rootnote);
+      }
+    }
+  }
+
+  showMenu("", "Save Preset " + String(pPresetIndex), "");
+  delay(1000);
+  showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
+
+}
+
+/*
+void getPresetsFromEeprom(){
+  uint8_t val;
+  val = EEPROM.read(10);
+  if(val!=255){ // a.k.a. hier wurde schonmal etwas gespeichert
+    
+  }
+
+  val = EEPROM.read(20);
+  if(val!=255){
+    fBPM_Preset2 = val;
+  }
+
+  val = EEPROM.read(30);
+  if(val!=255){
+    fBPM_Preset3 = val;
+  }
+}
+*/
+//  EEPROM.update(10, byte(fBPM_Preset1));
