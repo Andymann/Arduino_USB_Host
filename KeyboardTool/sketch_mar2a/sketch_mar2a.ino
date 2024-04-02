@@ -73,13 +73,13 @@ AppFeature arrFeatures[] = {
   AppFeature("Fix127", FEATURE_GROUP_VELOCITY, VELOCITY_FIX_127),
   AppFeature("Rnd", FEATURE_GROUP_VELOCITY, VELOCITY_RANDOM),
   
-  AppFeature("PT", FEATURE_GROUP_SCALE, SCALE_PASSTHRU, true),
+  AppFeature("Scale PT", FEATURE_GROUP_SCALE, SCALE_PASSTHRU, true),
   AppFeature("Major", FEATURE_GROUP_SCALE, SCALE_MAJOR),
   AppFeature("Minor", FEATURE_GROUP_SCALE, SCALE_MINOR),
   AppFeature("Penta Maj", FEATURE_GROUP_SCALE, SCALE_PENTATONIC_MAJOR),
   AppFeature("Penta Min", FEATURE_GROUP_SCALE, SCALE_PENTATONIC_MINOR),
 
-  AppFeature(" ", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_PASSTHROUGH, true),
+  AppFeature("(None)", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_PASSTHROUGH, true),
   AppFeature("C", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_C),
   AppFeature("C#", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_Cs),
   AppFeature("D", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_D),
@@ -167,10 +167,6 @@ void loop()
   readMux();
 
   if( (bButton_0_old==false) && (muxValue[BUTTON_0]==true) ){
-
-    SerialPrintln("btn 0");
-    //loadPReset(0);
-
     bButton_0_old = true;
   }else{
     bButton_0_old = muxValue[BUTTON_0];
@@ -422,9 +418,13 @@ void processNoteOn( uint8_t pBufMidi[] ){
 
 void processCC( uint8_t pBufMidi[] ){
   uint8_t iChannel = pBufMidi[1] - 0xB0;
-  uint8_t iController = pBufMidi[2];
-  uint8_t iValue = pBufMidi[3];
+  //uint8_t iController = pBufMidi[2];
+  //uint8_t iValue = pBufMidi[3];
   //SerialPrintln("CC. Channel:" + String(iChannel) + " CC:" + String(iController)+ " Value:" + String(iValue) );
+
+  Serial.write( byte(0xB0 + iChannel-1) );
+  Serial.write( pBufMidi[2] );
+  Serial.write( pBufMidi[3] );
 }
 
 void showInfo(int pWaitMS) {
@@ -559,15 +559,24 @@ void processMenuNavigation(int pDirection){
   showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
 }
 
+void showPreset(uint8_t pPresetID){
+  oled.setFont(menuFont);
+  oled.clear();
+  oled.set2X();
+  oled.println("Preset " + String(pPresetID));
+
+}
+
 void showMenu(String pLine1, String pLine2, String pLine3) {
   //oled.setFont(menuFont);
-  oled.clear();
+  oled.set1X();
   oled.setFont(TimesNewRoman16);
+  oled.clear();
   //oled.set2X();
   //oled.set1X();
   oled.println( " " + pLine1 );
   //oled.set1X();
-   oled.setFont(TimesNewRoman16_bold);
+  oled.setFont(TimesNewRoman16_bold);
   oled.println( "*" + pLine2 );
   //oled.set1X();
    oled.setFont(TimesNewRoman16);
@@ -627,7 +636,8 @@ String getFeaturePrefix(uint8_t pIndex){
   }else if(arrFeatures[pIndex].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
     return "Velo";
   }if(arrFeatures[pIndex].getFeatureGroup()==FEATURE_GROUP_SCALE){
-    return "Scale";
+    //return "Scale";
+    return "";  //because 'Major, Minor, etc is unique by itself and saves string data
   }if(arrFeatures[pIndex].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
     return "Root";
   }else{
@@ -726,9 +736,10 @@ void loadPreset(uint8_t pPresetIndex){
   }
 
   //SerialPrintln("preset loaded");
-  showMenu("", "Load Preset " + String(pPresetIndex), "");
-  delay(1000);
-  showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
+  //showMenu("", "Load Preset " + String(pPresetIndex), "");
+  showPreset(pPresetIndex);
+  //delay(1000);
+  //showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
 
 }
 
