@@ -31,7 +31,7 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.6"
+#define VERSION "0.7"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -363,25 +363,14 @@ uint8_t processMidi_Channel( uint8_t pBufMidi[], uint8_t pOffset ){
   return iChannel;
 }
 
-uint8_t processMidi_CC_Channel( uint8_t pBufMidi[] ){
-  uint8_t iChannel = pBufMidi[1] - 0x90;
-  uint8_t iPitch = pBufMidi[2];
-  uint8_t iVelocity = pBufMidi[3];
-}
 
-void processNoteOn( uint8_t pBufMidi[] ){
-  uint8_t iChannel = pBufMidi[1] - 0x90;
+int processMidi_Pitch( uint8_t pBufMidi[] ){
   uint8_t iPitch = pBufMidi[2];
-  uint8_t iVelocity = pBufMidi[3];
-  bool bSendOut = true;
-  
-  
-  //SerialPrintln("IN: Note ON " + String(iPitch%12) + "  Chan: " + String(iChannel+1) + "  Velo: " + String(iVelocity) );
-  //displayIncoming( pBufMidi );
+  bool bIsValidNote = true;
+
   for(uint8_t i=0; i<FEATURECOUNT; i++){
     if(arrFeatures[i].isSelected()){
       
-
       /*
         First we need to get the selected ROOT note. this will be taken as an offset: C=0, C#=1, etc.
         Scale transform: indices based on root note and iRootNoteOffset
@@ -392,7 +381,7 @@ void processNoteOn( uint8_t pBufMidi[] ){
         // iPitch+12 in order to not run into negative values on lowest octave
         int tmpNote = (iPitch+12-iRootNoteOffset)%12;
         if(arrFeatures[i].getFeature()==SCALE_PASSTHRU){
-          bSendOut = true;
+          bIsValidNote = true;
         }else if(arrFeatures[i].getFeature()==SCALE_MAJOR){
 
           if( (tmpNote == 0)||
@@ -404,7 +393,7 @@ void processNoteOn( uint8_t pBufMidi[] ){
               (tmpNote == 11) ){
                 
             }else{
-              bSendOut = false;
+              bIsValidNote = false;
             }
         }else if(arrFeatures[i].getFeature()==SCALE_MINOR){
           if( (tmpNote == 0)||
@@ -416,7 +405,7 @@ void processNoteOn( uint8_t pBufMidi[] ){
               (tmpNote == 10) ){
                 
             }else{
-              bSendOut = false;
+              bIsValidNote = false;
             }
         }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC_MAJOR){
           if( (tmpNote == 0)||
@@ -427,7 +416,7 @@ void processNoteOn( uint8_t pBufMidi[] ){
               (tmpNote == 12) ){
                 
             }else{
-              bSendOut = false;
+              bIsValidNote = false;
             }
         }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC_MINOR){
           if( (tmpNote == 0)||
@@ -438,19 +427,32 @@ void processNoteOn( uint8_t pBufMidi[] ){
               (tmpNote == 12) ){
                 
             }else{
-              bSendOut = false;
+              bIsValidNote = false;
             }
         }
       }
     }
   }
+  if( bIsValidNote==true ){
+    return iPitch;
+  }else {
+    return -1;
+  }
+  
+}
+
+void processNoteOn( uint8_t pBufMidi[] ){
+  uint8_t iChannel = pBufMidi[1] - 0x90;
+  int iPitch = pBufMidi[2];
+  uint8_t iVelocity = pBufMidi[3];
+  bool bSendOut = true;
+  
 
   iVelocity = processMidi_Velocity( pBufMidi );
   iChannel = processMidi_Channel(pBufMidi, 0x90);
-  //SerialPrintln("C:"+String(iChannel));
+  iPitch = processMidi_Pitch( pBufMidi );
 
-
-  if(bSendOut){
+  if(iPitch>-1){
     if( iVelocity>0){
       digitalWrite(LED, 1);
     }else{
@@ -458,7 +460,7 @@ void processNoteOn( uint8_t pBufMidi[] ){
     }
 
     Serial.write( byte(0x90 + iChannel) );
-    Serial.write( byte(iPitch) );
+    Serial.write( byte(uint8_t(iPitch)) );
     Serial.write( byte(iVelocity) );
   }
   
