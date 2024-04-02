@@ -270,6 +270,77 @@ void processNoteOff( uint8_t pBufMidi[] ){
   // tbd
 }
 
+uint8_t processMidi_Channel( uint8_t pBufMidi[], uint8_t pOffset ){
+  uint8_t iChannel;// = pBufMidi[1] - pOffset/*0x90*/;
+  
+  for(uint8_t i=0; i<FEATURECOUNT; i++){
+    if(arrFeatures[i].isSelected()){
+      if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+        if(arrFeatures[i].getFeature()==CHANNEL_PASSTHRU){
+          // Don't change anything
+          iChannel = pBufMidi[1]- pOffset;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_1){
+          iChannel=0;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_2){
+          iChannel=1;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_3){
+          iChannel=2;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_4){
+          iChannel=3;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_5){
+          iChannel=4;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_6){
+          iChannel=5;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_7){
+          iChannel=6;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_8){
+          iChannel=7;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_9){
+          iChannel=8;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_10){
+          iChannel=9;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_11){
+          iChannel=10;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_12){
+          iChannel=11;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_13){
+          iChannel=12;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_14){
+          iChannel=13;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_15){
+          iChannel=14;
+          break;
+        }else if(arrFeatures[i].getFeature()==CHANNEL_16){
+          iChannel=15;
+          break;
+        }
+      }
+    }
+  }
+  return iChannel;
+}
+
+uint8_t processMidi_CC_Channel( uint8_t pBufMidi[] ){
+  uint8_t iChannel = pBufMidi[1] - 0x90;
+  uint8_t iPitch = pBufMidi[2];
+  uint8_t iVelocity = pBufMidi[3];
+}
+
 void processNoteOn( uint8_t pBufMidi[] ){
   uint8_t iChannel = pBufMidi[1] - 0x90;
   uint8_t iPitch = pBufMidi[2];
@@ -298,44 +369,45 @@ void processNoteOn( uint8_t pBufMidi[] ){
           
         }
       }
+/*      
       if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
         if(arrFeatures[i].getFeature()==CHANNEL_PASSTHRU){
           // Don't change anything
         }else if(arrFeatures[i].getFeature()==CHANNEL_1){
-          iChannel=1;
+          iChannel=0;
         }else if(arrFeatures[i].getFeature()==CHANNEL_2){
-          iChannel=2;
+          iChannel=1;
         }else if(arrFeatures[i].getFeature()==CHANNEL_3){
-        iChannel=3;
+        iChannel=2;
         }else if(arrFeatures[i].getFeature()==CHANNEL_4){
-          iChannel=4;
+          iChannel=3;
         }else if(arrFeatures[i].getFeature()==CHANNEL_5){
-          iChannel=5;
+          iChannel=4;
         }else if(arrFeatures[i].getFeature()==CHANNEL_6){
-          iChannel=6;
+          iChannel=5;
         }else if(arrFeatures[i].getFeature()==CHANNEL_7){
-        iChannel=7;
+        iChannel=6;
         }else if(arrFeatures[i].getFeature()==CHANNEL_8){
-          iChannel=8;
+          iChannel=7;
         }else if(arrFeatures[i].getFeature()==CHANNEL_9){
-        iChannel=9;
+        iChannel=8;
         }else if(arrFeatures[i].getFeature()==CHANNEL_10){
-          iChannel=10;
+          iChannel=9;
         }else if(arrFeatures[i].getFeature()==CHANNEL_11){
-        iChannel=11;
+        iChannel=10;
         }else if(arrFeatures[i].getFeature()==CHANNEL_12){
-        iChannel=12;
+        iChannel=11;
         }else if(arrFeatures[i].getFeature()==CHANNEL_13){
-        iChannel=13;
+        iChannel=12;
         }else if(arrFeatures[i].getFeature()==CHANNEL_14){
-          iChannel=14;
+          iChannel=13;
         }else if(arrFeatures[i].getFeature()==CHANNEL_15){
-        iChannel=15;
+        iChannel=14;
         }else if(arrFeatures[i].getFeature()==CHANNEL_16){
-          iChannel=16;
+          iChannel=15;
         }
       }
-
+*/      
       /*
         First we need to get the selected ROOT note. this will be taken as an offset: C=0, C#=1, etc.
         Scale transform: indices based on root note and iRootNoteOffset
@@ -398,18 +470,19 @@ void processNoteOn( uint8_t pBufMidi[] ){
       }
     }
   }
-  
+
+  iChannel = processMidi_Channel(pBufMidi, 0x90);
+  //SerialPrintln("C:"+String(iChannel));
+
+
   if(bSendOut){
     if( iVelocity>0){
       digitalWrite(LED, 1);
     }else{
       digitalWrite(LED, 0);
     }
-    
 
-    
-    //SerialPrintln("OUT: Note ON " + String(iPitch) + "  Chan: " + String(iChannel) + "  Velo: " + String(iVelocity) );
-    Serial.write( byte(0x90 + iChannel-1) );
+    Serial.write( byte(0x90 + iChannel) );
     Serial.write( byte(iPitch) );
     Serial.write( byte(iVelocity) );
   }
@@ -417,12 +490,8 @@ void processNoteOn( uint8_t pBufMidi[] ){
 }
 
 void processCC( uint8_t pBufMidi[] ){
-  uint8_t iChannel = pBufMidi[1] - 0xB0;
-  //uint8_t iController = pBufMidi[2];
-  //uint8_t iValue = pBufMidi[3];
-  //SerialPrintln("CC. Channel:" + String(iChannel) + " CC:" + String(iController)+ " Value:" + String(iValue) );
-
-  Serial.write( byte(0xB0 + iChannel-1) );
+  uint8_t iChannel = processMidi_Channel(pBufMidi, 0xB0);
+  Serial.write( byte(0xB0 + iChannel) );
   Serial.write( pBufMidi[2] );
   Serial.write( pBufMidi[3] );
 }
