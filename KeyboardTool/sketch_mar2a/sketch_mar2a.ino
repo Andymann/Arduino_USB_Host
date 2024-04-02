@@ -270,6 +270,34 @@ void processNoteOff( uint8_t pBufMidi[] ){
   // tbd
 }
 
+
+uint8_t processMidi_Velocity(uint8_t pBufMidi[]){
+  uint8_t iVelocity = pBufMidi[3];
+
+  for(uint8_t i=0; i<FEATURECOUNT; i++){
+    if(arrFeatures[i].isSelected()){
+      if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
+        if(iVelocity>0){
+          if(arrFeatures[i].getFeature()==VELOCITY_PASSTHRU){
+            // Don't change
+          }else if(arrFeatures[i].getFeature()==VELOCITY_FIX_63){
+            iVelocity = 63;
+          }if(arrFeatures[i].getFeature()==VELOCITY_FIX_100){
+            iVelocity = 100;
+          }if(arrFeatures[i].getFeature()==VELOCITY_FIX_127){
+            iVelocity = 127;
+          }if(arrFeatures[i].getFeature()==VELOCITY_RANDOM){
+            iVelocity=(int)random(128);
+          }
+        }else{
+          
+        }
+      }
+    }
+  }
+  return iVelocity;
+}
+
 uint8_t processMidi_Channel( uint8_t pBufMidi[], uint8_t pOffset ){
   uint8_t iChannel;// = pBufMidi[1] - pOffset/*0x90*/;
   
@@ -352,62 +380,8 @@ void processNoteOn( uint8_t pBufMidi[] ){
   //displayIncoming( pBufMidi );
   for(uint8_t i=0; i<FEATURECOUNT; i++){
     if(arrFeatures[i].isSelected()){
-      if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
-        if(iVelocity>0){
-          if(arrFeatures[i].getFeature()==VELOCITY_PASSTHRU){
-            // Don't change
-          }else if(arrFeatures[i].getFeature()==VELOCITY_FIX_63){
-            iVelocity = 63;
-          }if(arrFeatures[i].getFeature()==VELOCITY_FIX_100){
-            iVelocity = 100;
-          }if(arrFeatures[i].getFeature()==VELOCITY_FIX_127){
-            iVelocity = 127;
-          }if(arrFeatures[i].getFeature()==VELOCITY_RANDOM){
-            iVelocity=(int)random(128);
-          }
-        }else{
-          
-        }
-      }
-/*      
-      if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
-        if(arrFeatures[i].getFeature()==CHANNEL_PASSTHRU){
-          // Don't change anything
-        }else if(arrFeatures[i].getFeature()==CHANNEL_1){
-          iChannel=0;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_2){
-          iChannel=1;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_3){
-        iChannel=2;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_4){
-          iChannel=3;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_5){
-          iChannel=4;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_6){
-          iChannel=5;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_7){
-        iChannel=6;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_8){
-          iChannel=7;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_9){
-        iChannel=8;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_10){
-          iChannel=9;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_11){
-        iChannel=10;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_12){
-        iChannel=11;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_13){
-        iChannel=12;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_14){
-          iChannel=13;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_15){
-        iChannel=14;
-        }else if(arrFeatures[i].getFeature()==CHANNEL_16){
-          iChannel=15;
-        }
-      }
-*/      
+      
+
       /*
         First we need to get the selected ROOT note. this will be taken as an offset: C=0, C#=1, etc.
         Scale transform: indices based on root note and iRootNoteOffset
@@ -471,6 +445,7 @@ void processNoteOn( uint8_t pBufMidi[] ){
     }
   }
 
+  iVelocity = processMidi_Velocity( pBufMidi );
   iChannel = processMidi_Channel(pBufMidi, 0x90);
   //SerialPrintln("C:"+String(iChannel));
 
