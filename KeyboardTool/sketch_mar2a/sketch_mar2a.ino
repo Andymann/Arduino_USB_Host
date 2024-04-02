@@ -250,6 +250,9 @@ void processData( uint8_t pBufMidi[] ){
   case 0x0B:
     processCC(pBufMidi);
     break;
+  case 0x0E:
+    processPitchwheel(pBufMidi);
+    break;
   default:
     // Statement(s)
     processOther( pBufMidi );
@@ -470,6 +473,13 @@ void processNoteOn( uint8_t pBufMidi[] ){
 void processCC( uint8_t pBufMidi[] ){
   uint8_t iChannel = processMidi_Channel(pBufMidi, 0xB0);
   Serial.write( byte(0xB0 + iChannel) );
+  Serial.write( pBufMidi[2] );
+  Serial.write( pBufMidi[3] );
+}
+
+void processPitchwheel( uint8_t pBufMidi[] ){
+  uint8_t iChannel = processMidi_Channel(pBufMidi, 0xE0);
+  Serial.write( byte(0xE0 + iChannel) );
   Serial.write( pBufMidi[2] );
   Serial.write( pBufMidi[3] );
 }
