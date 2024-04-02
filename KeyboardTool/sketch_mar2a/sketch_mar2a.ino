@@ -19,7 +19,6 @@
 #include "SSD1306Ascii.h"
 #include "SSD1306AsciiWire.h"
 #include <light_CD74HC4067.h>
-//#include <Button2.h>
 #include "AppFeature.h"
 #include <EEPROM.h>
 
@@ -77,7 +76,8 @@ AppFeature arrFeatures[] = {
   AppFeature("PT", FEATURE_GROUP_SCALE, SCALE_PASSTHRU, true),
   AppFeature("Major", FEATURE_GROUP_SCALE, SCALE_MAJOR),
   AppFeature("Minor", FEATURE_GROUP_SCALE, SCALE_MINOR),
-  AppFeature("Penta", FEATURE_GROUP_SCALE, SCALE_PENTATONIC),
+  AppFeature("Penta Maj", FEATURE_GROUP_SCALE, SCALE_PENTATONIC_MAJOR),
+  AppFeature("Penta Min", FEATURE_GROUP_SCALE, SCALE_PENTATONIC_MINOR),
 
   AppFeature(" ", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_PASSTHROUGH, true),
   AppFeature("C", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_C),
@@ -114,7 +114,7 @@ AppFeature arrFeatures[] = {
   AppFeature(" ", FEATURE_GROUP_PLACEHOLDER, 0)
 };
 
-const uint8_t FEATURECOUNT = 40;
+const uint8_t FEATURECOUNT = 41;
 int iMenuPosition = -3;
 uint8_t iRootNoteOffset=0;
 
@@ -130,22 +130,11 @@ void onInit()
 
 void setup()
 {
-/*
-  // Testweise ein preset speichern
-  EEPROM.update(10, byte(0x02));
-  EEPROM.update(11, byte(0x02));
-  EEPROM.update(12, byte(0x02));
-  EEPROM.update(13, byte(0x02));
-*/
-
 
   randomSeed(analogRead(1));
   pinMode(DEMUX_PIN, INPUT);
   pinMode(LED, OUTPUT);
-  Serial.begin(31250);
-  
   digitalWrite(LED, 1);
-  while(!Serial);
   //SerialPrintln("Serial init'd");
     pinMode(MAX_GPX, INPUT);
     pinMode(MAX_RESET, OUTPUT);
@@ -166,7 +155,9 @@ void setup()
   Wire.setClock(400000L);
   oled.begin(&Adafruit128x64, DISPLAY_I2C_ADDRESS);
 
-  //SerialPrintln("ok");
+  Serial.begin(31250);
+  while(!Serial);
+
   showInfo(1000);
   digitalWrite(LED, 0);
 }
@@ -356,12 +347,12 @@ void processNoteOn( uint8_t pBufMidi[] ){
           Minor scale: 0 2 3 5 7 8 10
       */
       if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_SCALE){
+        // iPitch+12 in order to not run into negative values on lowest octave
         int tmpNote = (iPitch+12-iRootNoteOffset)%12;
         if(arrFeatures[i].getFeature()==SCALE_PASSTHRU){
-          // Do nothing
+          bSendOut = true;
         }else if(arrFeatures[i].getFeature()==SCALE_MAJOR){
-          //SerialPrintln("X " + String(iRootNoteOffset)+ ":"+ String((iPitch%12) - iRootNoteOffset) );
-          
+
           if( (tmpNote == 0)||
               (tmpNote == 2)||
               (tmpNote == 4)||
@@ -385,8 +376,28 @@ void processNoteOn( uint8_t pBufMidi[] ){
             }else{
               bSendOut = false;
             }
-        }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC){
-
+        }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC_MAJOR){
+          if( (tmpNote == 0)||
+              (tmpNote == 2)||
+              (tmpNote == 4)||
+              (tmpNote == 7)||
+              (tmpNote == 9)||
+              (tmpNote == 12) ){
+                
+            }else{
+              bSendOut = false;
+            }
+        }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC_MINOR){
+          if( (tmpNote == 0)||
+              (tmpNote == 3)||
+              (tmpNote == 5)||
+              (tmpNote == 7)||
+              (tmpNote == 10)||
+              (tmpNote == 12) ){
+                
+            }else{
+              bSendOut = false;
+            }
         }
       }
     }
@@ -792,24 +803,3 @@ void savePreset(uint8_t pPresetIndex){
   showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
 
 }
-
-/*
-void getPresetsFromEeprom(){
-  uint8_t val;
-  val = EEPROM.read(10);
-  if(val!=255){ // a.k.a. hier wurde schonmal etwas gespeichert
-    
-  }
-
-  val = EEPROM.read(20);
-  if(val!=255){
-    fBPM_Preset2 = val;
-  }
-
-  val = EEPROM.read(30);
-  if(val!=255){
-    fBPM_Preset3 = val;
-  }
-}
-*/
-//  EEPROM.update(10, byte(fBPM_Preset1));

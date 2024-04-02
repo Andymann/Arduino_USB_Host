@@ -19,7 +19,8 @@ const uint8_t VELOCITY_RANDOM = 4;
 const uint8_t SCALE_PASSTHRU = 0;
 const uint8_t SCALE_MAJOR = 1;
 const uint8_t SCALE_MINOR = 2;
-const uint8_t SCALE_PENTATONIC = 3;
+const uint8_t SCALE_PENTATONIC_MAJOR = 3;
+const uint8_t SCALE_PENTATONIC_MINOR = 4;
 
 const uint8_t ROOTNOTE_PASSTHROUGH = 0;
 const uint8_t ROOTNOTE_C = 01;
