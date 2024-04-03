@@ -165,6 +165,7 @@ void setup()
 
 void loop()
 {
+  
   readMux();
 
   if( (bButton_0_old==false) && (muxValue[BUTTON_0]==true) ){
@@ -212,6 +213,7 @@ void loop()
     MIDI_poll();
   }
 
+
   iEncoderValue = queryEncoder();
   if(iEncoderValue!=0){
     // New value
@@ -225,6 +227,7 @@ void loop()
   }else if((muxValue[ENCODER_CLICK]==false) && ( bEncoderClick_old )){
     bEncoderClick_old = false;
   }
+
 }
 
 // Poll USB MIDI Controller and send to serial MIDI
@@ -297,7 +300,7 @@ uint8_t processMidi_Velocity(uint8_t pBufMidi[]){
             iVelocity=(int)(95+random(11));
           }
         }else{
-          
+          iVelocity = 0;
         }
       }
     }
@@ -464,6 +467,10 @@ void processNoteOn( uint8_t pBufMidi[] ){
       digitalWrite(LED, 1);
     }else{
       digitalWrite(LED, 0);
+      //iVelocity = 0; //occasionally notes got stuck
+      Serial.write( byte(0x90 + iChannel) );
+      Serial.write( byte(uint8_t(iPitch)) );
+      Serial.write( byte(0) );
     }
 
     Serial.write( byte(0x90 + iChannel) );
