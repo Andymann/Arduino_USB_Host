@@ -31,7 +31,7 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.91"
+#define VERSION "0.92"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -126,7 +126,7 @@ struct QueueItem{
   uint8_t val3=0;
 };
 
-const uint8_t QUEUELENGTH = 32;
+const uint8_t QUEUELENGTH = 8;
 uint8_t cueueWriteIndex=0; // Points to the next usable element in the queue.
 uint8_t cueueReadIndex=0;
 QueueItem midiQueue[QUEUELENGTH];
@@ -535,12 +535,14 @@ void processNoteOn( uint8_t pBufMidi[] ){
       Serial.write( byte(0x90 + iChannel) );
       Serial.write( byte(uint8_t(iPitch)) );
       Serial.write( byte(iVelocity) );
+      Serial.flush();
     }else{
       digitalWrite(LED, 0);
       //iVelocity = 0; //occasionally notes got stuck
       Serial.write( byte(0x90 + iChannel) );
       Serial.write( byte(uint8_t(iPitch)) );
       Serial.write( byte(0) );
+      Serial.flush();
     }
 
     
