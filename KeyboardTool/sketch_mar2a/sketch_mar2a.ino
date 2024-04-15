@@ -31,7 +31,7 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.92"
+#define VERSION "0.94"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -123,7 +123,7 @@ struct QueueItem{
   uint8_t val0=0;
   uint8_t val1=0;
   uint8_t val2=0;
-  uint8_t val3=0;
+
 };
 
 const uint8_t QUEUELENGTH = 8;
@@ -156,12 +156,12 @@ void setup()
   pinMode(LED, OUTPUT);
   digitalWrite(LED, 1);
   //SerialPrintln("Serial init'd");
-    pinMode(MAX_GPX, INPUT);
-    pinMode(MAX_RESET, OUTPUT);
-    digitalWrite(MAX_RESET, LOW);
-    delay(50); //wait 20ms
-    digitalWrite(MAX_RESET, HIGH);
-    delay(50); //wait 20ms
+  pinMode(MAX_GPX, INPUT);
+  pinMode(MAX_RESET, OUTPUT);
+  digitalWrite(MAX_RESET, LOW);
+  delay(50); //wait 20ms
+  digitalWrite(MAX_RESET, HIGH);
+  delay(50); //wait 20ms
 
   if (Usb.Init() == -1) {
     while (1); //halt
@@ -253,19 +253,20 @@ void loop()
 }
 
 // Poll USB MIDI Controller and send to serial MIDI
-void MIDI_poll()
-{
-  uint8_t bufMidi[MIDI_EVENT_PACKET_SIZE];
-  uint16_t  rcvd;
+void MIDI_poll(){
 
-  if (Midi.RecvData( &rcvd,  bufMidi) == 0 ) {
-    //processData(bufMidi);
-    addToQueue(bufMidi[0], bufMidi[1], bufMidi[2], bufMidi[3]);
-  }
+  uint8_t bufMidi[ 3 ];
+  uint8_t size;
+
+  do {
+    if ( (size = Midi.RecvData(bufMidi)) > 0 ) {
+      addToQueue(bufMidi[0], bufMidi[1], bufMidi[2]);
+    }
+  } while (size > 0);
   
 }
 
-void addToQueue(uint8_t pData0, uint8_t pData1, uint8_t pData2, uint8_t pData3){
+void addToQueue(uint8_t pData0, uint8_t pData1, uint8_t pData2){
 
   if(cueueWriteIndex==QUEUELENGTH){
     cueueWriteIndex=0;
@@ -273,8 +274,7 @@ void addToQueue(uint8_t pData0, uint8_t pData1, uint8_t pData2, uint8_t pData3){
   if(cueueWriteIndex<QUEUELENGTH){
     midiQueue[cueueWriteIndex].val0=pData0;
     midiQueue[cueueWriteIndex].val1=pData1;
-    midiQueue[cueueWriteIndex].val2=pData2;
-    midiQueue[cueueWriteIndex].val3=pData3;
+    midiQueue[cueueWriteIndex].val2=pData2;   
     cueueWriteIndex++;
   }  
 }
@@ -286,40 +286,32 @@ void processQueue(){
   if( cueueReadIndex<QUEUELENGTH){
     if(midiQueue[cueueReadIndex].val0 != 0){
       digitalWrite(LED, true);
-      uint8_t pBufMidi[4];
+      uint8_t pBufMidi[3];
       pBufMidi[0]=midiQueue[cueueReadIndex].val0;
       pBufMidi[1]=midiQueue[cueueReadIndex].val1;
       pBufMidi[2]=midiQueue[cueueReadIndex].val2;
-      pBufMidi[3]=midiQueue[cueueReadIndex].val3;
       processData( pBufMidi );
       midiQueue[cueueReadIndex].val0 = 0;
       cueueReadIndex++;
       digitalWrite(LED, false);
-      
     }
   }
 }
 
 void processData( uint8_t pBufMidi[] ){
-  //printData(pBufMidi);
-  switch (pBufMidi[0]) {
-  case 0x08:
-    processNoteOff(pBufMidi);
-    break;
-  case 0x09:
-    processNoteOn(pBufMidi);
-    break;
-  case 0x0B:
+
+  if((pBufMidi[0]>=0x80)&&(pBufMidi[0]<0x8F)){
+    pBufMidi[2]=0x00;
+    processNoteOn( pBufMidi );
+  }else if((pBufMidi[0]>=0x90)&&(pBufMidi[0]<0x9F)){
+    processNoteOn( pBufMidi );
+  }else if((pBufMidi[0]>=0xB0)&&(pBufMidi[0]<0xBF)){
     processCC(pBufMidi);
-    break;
-  case 0x0E:
-    processPitchwheel(pBufMidi);
-    break;
-  default:
-    // Statement(s)
+  }else if((pBufMidi[0]>=0xE0)&&(pBufMidi[0]<0xEF)){
+    processPitchwheel( pBufMidi );
+  }else{
     processOther( pBufMidi );
-    break; // Wird nicht benötigt, wenn Statement(s) vorhanden sind
-}
+  }
 
 }
 
@@ -338,7 +330,7 @@ void processNoteOff( uint8_t pBufMidi[] ){
 
 
 uint8_t processMidi_Velocity(uint8_t pBufMidi[]){
-  uint8_t iVelocity = pBufMidi[3];
+  uint8_t iVelocity = pBufMidi[2];
 
   for(uint8_t i=0; i<FEATURECOUNT; i++){
     if(arrFeatures[i].isSelected()){
@@ -380,7 +372,7 @@ uint8_t processMidi_Channel( uint8_t pBufMidi[], uint8_t pOffset ){
       if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
         if(arrFeatures[i].getFeature()==CHANNEL_PASSTHRU){
           // Don't change anything
-          iChannel = pBufMidi[1]- pOffset;
+          iChannel = pBufMidi[0]- pOffset;
           break;
         }else if(arrFeatures[i].getFeature()==CHANNEL_1){
           iChannel=0;
@@ -439,7 +431,7 @@ uint8_t processMidi_Channel( uint8_t pBufMidi[], uint8_t pOffset ){
 
 
 int processMidi_Pitch( uint8_t pBufMidi[] ){
-  uint8_t iPitch = pBufMidi[2];
+  uint8_t iPitch = pBufMidi[1];
   bool bIsValidNote = true;
 
   for(uint8_t i=0; i<FEATURECOUNT; i++){
@@ -519,9 +511,9 @@ int processMidi_Pitch( uint8_t pBufMidi[] ){
 }
 
 void processNoteOn( uint8_t pBufMidi[] ){
-  uint8_t iChannel = pBufMidi[1] - 0x90;
-  int iPitch = pBufMidi[2];
-  uint8_t iVelocity = pBufMidi[3];
+  uint8_t iChannel = pBufMidi[0] - 0x90;
+  int iPitch = pBufMidi[1];
+  uint8_t iVelocity = pBufMidi[2];
   bool bSendOut = true;
   
 
@@ -535,39 +527,42 @@ void processNoteOn( uint8_t pBufMidi[] ){
       Serial.write( byte(0x90 + iChannel) );
       Serial.write( byte(uint8_t(iPitch)) );
       Serial.write( byte(iVelocity) );
-      Serial.flush();
+      //Serial.flush();
     }else{
       digitalWrite(LED, 0);
       //iVelocity = 0; //occasionally notes got stuck
       Serial.write( byte(0x90 + iChannel) );
       Serial.write( byte(uint8_t(iPitch)) );
       Serial.write( byte(0) );
-      Serial.flush();
+      //Serial.flush();
     }
-
-    
+    Serial.flush();
   }
+  
 }
 
 void processCC( uint8_t pBufMidi[] ){
   uint8_t iChannel = processMidi_Channel(pBufMidi, 0xB0);
   Serial.write( byte(0xB0 + iChannel) );
+  Serial.write( pBufMidi[1] );
   Serial.write( pBufMidi[2] );
-  Serial.write( pBufMidi[3] );
+  Serial.flush();
 }
 
 void processPitchwheel( uint8_t pBufMidi[] ){
   uint8_t iChannel = processMidi_Channel(pBufMidi, 0xE0);
   Serial.write( byte(0xE0 + iChannel) );
+  Serial.write( pBufMidi[1] );
   Serial.write( pBufMidi[2] );
-  Serial.write( pBufMidi[3] );
+  Serial.flush();
 }
 
 void processOther( uint8_t pBufMidi[] ){
 
+  Serial.write( pBufMidi[0] );
   Serial.write( pBufMidi[1] );
   Serial.write( pBufMidi[2] );
-  Serial.write( pBufMidi[3] );
+  Serial.flush();
 }
 
 void showInfo(int pWaitMS) {
