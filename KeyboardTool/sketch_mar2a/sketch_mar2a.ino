@@ -5,6 +5,8 @@
   Based on mini USB host shield
   Takes a MIDI input from a USB MIDI Keyboard, processes it and sends it out via MIDI socket.
 
+  A Bug in MAPPER mode: high pitch notes in c# minor, penta, etc.
+
 */
 #include <usbh_midi.h>
 #include <usbhub.h>
@@ -24,7 +26,7 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.96"
+#define VERSION "0.97"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -115,18 +117,6 @@ const uint8_t FEATURECOUNT = 44;
 int iMenuPosition = -3;
 uint8_t iRootNoteOffset=0;
 
-struct QueueItem{
-  uint8_t val0=0;
-  uint8_t val1=0;
-  uint8_t val2=0;
-
-};
-
-const uint8_t QUEUELENGTH = 4;
-uint8_t cueueWriteIndex=0; // Points to the next usable element in the queue.
-uint8_t cueueReadIndex=0;
-QueueItem midiQueue[QUEUELENGTH];
-
 void onInit()
 {
   char buf[20];
@@ -134,14 +124,6 @@ void onInit()
   uint16_t pid = Midi.idProduct();
   //sprintf(buf, "VID:%04X, PID:%04X", vid, pid);
   //SerialPrintln(buf); 
-}
-
-void initMidiQueue(){
-  //for(uint8_t i=0; i<QUEUELENGTH; i++){
-  //  midiQueue[i].val1=0;
-  //   midiQueue[i].val2=0;
-  //    midiQueue[i].val3=0;
-  //}
 }
 
 void deletePresets(){
@@ -169,7 +151,6 @@ void deletePresets(){
 void setup()
 {
   //deletePresets();
-  initMidiQueue();
   randomSeed(analogRead(1));
   pinMode(DEMUX_PIN, INPUT);
   pinMode(LED, OUTPUT);
@@ -266,9 +247,6 @@ void loop()
     bEncoderClick_old = false;
   }
 
-  processQueue();
-
-
 }
 
 // Poll USB MIDI Controller and send to serial MIDI
@@ -279,42 +257,9 @@ void MIDI_poll(){
 
   do {
     if ( (size = Midi.RecvData(bufMidi)) > 0 ) {
-      addToQueue(bufMidi[0], bufMidi[1], bufMidi[2]);
+      processData( bufMidi );
     }
   } while (size > 0);
-  
-}
-
-void addToQueue(uint8_t pData0, uint8_t pData1, uint8_t pData2){
-
-  if(cueueWriteIndex==QUEUELENGTH){
-    cueueWriteIndex=0;
-  }
-  if(cueueWriteIndex<QUEUELENGTH){
-    midiQueue[cueueWriteIndex].val0=pData0;
-    midiQueue[cueueWriteIndex].val1=pData1;
-    midiQueue[cueueWriteIndex].val2=pData2;   
-    cueueWriteIndex++;
-  }  
-}
-
-void processQueue(){
-  if( cueueReadIndex==QUEUELENGTH ){
-    cueueReadIndex=0;
-  }
-  if( cueueReadIndex<QUEUELENGTH){
-    if(midiQueue[cueueReadIndex].val0 != 0){
-      digitalWrite(LED, true);
-      uint8_t pBufMidi[3];
-      pBufMidi[0]=midiQueue[cueueReadIndex].val0;
-      pBufMidi[1]=midiQueue[cueueReadIndex].val1;
-      pBufMidi[2]=midiQueue[cueueReadIndex].val2;
-      processData( pBufMidi );
-      midiQueue[cueueReadIndex].val0 = 0;
-      cueueReadIndex++;
-      digitalWrite(LED, false);
-    }
-  }
 }
 
 void processData( uint8_t pBufMidi[] ){
@@ -453,14 +398,14 @@ int processMidi_Pitch( uint8_t pBufMidi[] ){
   uint8_t iPitch = pBufMidi[1];
   bool bIsValidNote = false;
   bool bReprocessInput = true;
-  uint8_t iNoteMapperOffset = 0;
+  int iNoteMapperOffset = 0;
 
   for(uint8_t i=0; i<FEATURECOUNT; i++){
     if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_SCALE_HANDLER){
       if(arrFeatures[i].getFeature()==SCALE_HANDLER_FILTER){
         if( arrFeatures[i].isSelected() ){
           // Bei MAPPER wird die eingehende Note solange veraendert und neu verarbeitet, bis es passt.
-          // Bei FILTER heisst es: Passt oder Ppasst nicht.
+          // Bei FILTER heisst es: Passt oder passt nicht.
           bReprocessInput = false;
         }
       }
@@ -477,75 +422,88 @@ int processMidi_Pitch( uint8_t pBufMidi[] ){
       if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_SCALE){
         // iPitch+12 in order to not run into negative values on lowest octave
         int tmpNote = (iPitch+12-iRootNoteOffset)%12;
+
         if(arrFeatures[i].getFeature()==SCALE_PASSTHRU){
           bIsValidNote = true;
         }else if(arrFeatures[i].getFeature()==SCALE_MAJOR){
           do{
-            if( (tmpNote == 0)||
-                (tmpNote == 2)||
-                (tmpNote == 4)||
-                (tmpNote == 5)||
-                (tmpNote == 7)||
-                (tmpNote == 9)||
-                (tmpNote == 11) ){
+            byte b = (tmpNote+iNoteMapperOffset)%12;
+            if( (b == 0)||
+                (b == 2)||
+                (b == 4)||
+                (b == 5)||
+                (b == 7)||
+                (b == 9)||
+                (b == 11) ){
                   bIsValidNote = true;
                   bReprocessInput = false;
               }else{
                 bIsValidNote = false;
                 iNoteMapperOffset++;
-                tmpNote+=iNoteMapperOffset;
+                //tmpNote+=iNoteMapperOffset;
               }
           }while(bReprocessInput == true);
           break;
         }else if(arrFeatures[i].getFeature()==SCALE_MINOR){
           do{
-            if( (tmpNote == 0)||
-                (tmpNote == 2)||
-                (tmpNote == 3)||
-                (tmpNote == 5)||
-                (tmpNote == 7)||
-                (tmpNote == 8)||
-                (tmpNote == 10) ){
+            //Serial.print(tmpNote);
+            //Serial.print('_');
+            //Serial.println(iNoteMapperOffset);
+
+            byte b = (tmpNote+iNoteMapperOffset)%12;
+            if( (b == 0)||
+                (b == 2)||
+                (b == 3)||
+                (b == 5)||
+                (b == 7)||
+                (b == 8)||
+                (b == 10) ){
                   bIsValidNote = true;
                   bReprocessInput = false;
               }else{
                 bIsValidNote = false;
                 iNoteMapperOffset++;
-                tmpNote+=iNoteMapperOffset;
+                //tmpNote+=iNoteMapperOffset;
+                //tmpNote%=12;
               }
           }while(bReprocessInput == true);
           break;
         }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC_MAJOR){
           do{
-            if( (tmpNote == 0)||
-                (tmpNote == 2)||
-                (tmpNote == 4)||
-                (tmpNote == 7)||
-                (tmpNote == 9)||
-                (tmpNote == 12) ){
+            //Serial.println(iNoteMapperOffset, 10);
+            byte b = (tmpNote+iNoteMapperOffset)%12;
+            if( (b == 0)||
+                (b == 2)||
+                (b == 4)||
+                (b == 7)||
+                (b == 9)||
+                (b == 12) ){
                   bIsValidNote = true;
                   bReprocessInput = false;
               }else{
                 bIsValidNote = false;
                 iNoteMapperOffset++;
-                tmpNote+=iNoteMapperOffset;
+                //tmpNote+=iNoteMapperOffset;
+                //tmpNote%=12;
               }
           }while(bReprocessInput == true);
           break;
         }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC_MINOR){
           do{
-            if( (tmpNote == 0)||
-                (tmpNote == 3)||
-                (tmpNote == 5)||
-                (tmpNote == 7)||
-                (tmpNote == 10)||
-                (tmpNote == 12) ){
+            byte b = (tmpNote+iNoteMapperOffset)%12;
+            if( (b == 0)||
+                (b == 3)||
+                (b == 5)||
+                (b == 7)||
+                (b == 10)||
+                (b == 12) ){
                   bIsValidNote = true;
                   bReprocessInput = false;
               }else{
                 bIsValidNote = false;
                 iNoteMapperOffset++;
-                tmpNote+=iNoteMapperOffset;
+                //tmpNote+=iNoteMapperOffset;
+                //tmpNote%=12;
               }
           }while(bReprocessInput == true);
           break;
@@ -572,20 +530,20 @@ void processNoteOn( uint8_t pBufMidi[] ){
   iPitch = processMidi_Pitch( pBufMidi );
 
   if(iPitch>-1){
+    digitalWrite(LED, 1);
+
     if( iVelocity>0){
-      digitalWrite(LED, 1);
       Serial.write( byte(0x90 + iChannel) );
       Serial.write( byte(uint8_t(iPitch)) );
       Serial.write( byte(iVelocity) );
-      //Serial.flush();
     }else{
-      digitalWrite(LED, 0);
       //iVelocity = 0; //occasionally notes got stuck
       Serial.write( byte(0x90 + iChannel) );
       Serial.write( byte(uint8_t(iPitch)) );
       Serial.write( byte(0) );
-      //Serial.flush();
     }
+
+    digitalWrite(LED, 0);
     Serial.flush();
   }
   
@@ -763,7 +721,7 @@ void showMenu(String pLine1, String pLine2, String pLine3) {
   oled.println( " " + pLine3 );
 
   if(iActivePreset!=127){
-    oled.print("                     [ Preset:" + String(iActivePreset) + " ]");
+    oled.print("                   [ Preset:" + String(iActivePreset) + " ]");
   }
 }
 
