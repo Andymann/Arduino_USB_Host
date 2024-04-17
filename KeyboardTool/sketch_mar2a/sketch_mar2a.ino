@@ -31,7 +31,7 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.94"
+#define VERSION "0.95"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -63,6 +63,7 @@ bool muxValue[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // The va
 
 int iEncoderValue = 0;
 bool bEncoderClick_old = false;
+uint8_t iActivePreset = 127;
 
 #define LED 6
 
@@ -641,7 +642,6 @@ void processEncoderClick(){
 
   if(muxValue[BUTTON_0]==true){
 
-
   }
   // We are at iMenuPosition
   uint8_t tmpFG = arrFeatures[iMenuPosition].getFeatureGroup();
@@ -710,15 +710,15 @@ void showMenu(String pLine1, String pLine2, String pLine3) {
   oled.set1X();
   oled.setFont(TimesNewRoman16);
   oled.clear();
-  //oled.set2X();
-  //oled.set1X();
   oled.println( " " + pLine1 );
-  //oled.set1X();
   oled.setFont(TimesNewRoman16_bold);
   oled.println( "*" + pLine2 );
-  //oled.set1X();
    oled.setFont(TimesNewRoman16);
   oled.println( " " + pLine3 );
+
+  if(iActivePreset!=127){
+    oled.print("                       [ Preset:" + String(iActivePreset) + " ]");
+  }
 }
 
 String getMenuItem(int pPosition){
@@ -830,7 +830,6 @@ void loadPreset(uint8_t pPresetIndex){
     }
   }
 
-
   uint8_t val;
 
   val = EEPROM.read(iAddress + 0);
@@ -873,11 +872,8 @@ void loadPreset(uint8_t pPresetIndex){
     arrFeatures[val + iFeaturecount_velocity + iFeaturecount_scale + iFeaturecount_rootnote].select(true);
   }
 
-  //SerialPrintln("preset loaded");
-  //showMenu("", "Load Preset " + String(pPresetIndex), "");
   showPreset(pPresetIndex);
-  //delay(1000);
-  //showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
+  iActivePreset = pPresetIndex;
 
 }
 
