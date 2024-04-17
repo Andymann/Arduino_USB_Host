@@ -716,12 +716,12 @@ void showMenu(String pLine1, String pLine2, String pLine3) {
   oled.clear();
   oled.println( " " + pLine1 );
   oled.setFont(TimesNewRoman16_bold);
-  oled.println( "*" + pLine2 );
+  oled.println( /*"*" +*/ pLine2 );
    oled.setFont(TimesNewRoman16);
   oled.println( " " + pLine3 );
 
   if(iActivePreset!=127){
-    oled.print("                   [ Preset:" + String(iActivePreset) + " ]");
+    oled.print("                     [ Preset:" + String(iActivePreset) + " ]");
   }
 }
 
