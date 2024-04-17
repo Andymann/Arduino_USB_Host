@@ -440,16 +440,11 @@ int processMidi_Pitch( uint8_t pBufMidi[] ){
               }else{
                 bIsValidNote = false;
                 iNoteMapperOffset++;
-                //tmpNote+=iNoteMapperOffset;
               }
           }while(bReprocessInput == true);
           break;
         }else if(arrFeatures[i].getFeature()==SCALE_MINOR){
           do{
-            //Serial.print(tmpNote);
-            //Serial.print('_');
-            //Serial.println(iNoteMapperOffset);
-
             byte b = (tmpNote+iNoteMapperOffset)%12;
             if( (b == 0)||
                 (b == 2)||
@@ -463,14 +458,11 @@ int processMidi_Pitch( uint8_t pBufMidi[] ){
               }else{
                 bIsValidNote = false;
                 iNoteMapperOffset++;
-                //tmpNote+=iNoteMapperOffset;
-                //tmpNote%=12;
               }
           }while(bReprocessInput == true);
           break;
         }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC_MAJOR){
           do{
-            //Serial.println(iNoteMapperOffset, 10);
             byte b = (tmpNote+iNoteMapperOffset)%12;
             if( (b == 0)||
                 (b == 2)||
@@ -483,8 +475,6 @@ int processMidi_Pitch( uint8_t pBufMidi[] ){
               }else{
                 bIsValidNote = false;
                 iNoteMapperOffset++;
-                //tmpNote+=iNoteMapperOffset;
-                //tmpNote%=12;
               }
           }while(bReprocessInput == true);
           break;
@@ -502,8 +492,6 @@ int processMidi_Pitch( uint8_t pBufMidi[] ){
               }else{
                 bIsValidNote = false;
                 iNoteMapperOffset++;
-                //tmpNote+=iNoteMapperOffset;
-                //tmpNote%=12;
               }
           }while(bReprocessInput == true);
           break;
@@ -532,16 +520,9 @@ void processNoteOn( uint8_t pBufMidi[] ){
   if(iPitch>-1){
     digitalWrite(LED, 1);
 
-    if( iVelocity>0){
-      Serial.write( byte(0x90 + iChannel) );
-      Serial.write( byte(uint8_t(iPitch)) );
-      Serial.write( byte(iVelocity) );
-    }else{
-      //iVelocity = 0; //occasionally notes got stuck
-      Serial.write( byte(0x90 + iChannel) );
-      Serial.write( byte(uint8_t(iPitch)) );
-      Serial.write( byte(0) );
-    }
+    Serial.write( byte(0x90 + iChannel) );
+    Serial.write( byte(uint8_t(iPitch)) );
+    Serial.write( byte(iVelocity) );
 
     digitalWrite(LED, 0);
     Serial.flush();
@@ -599,7 +580,6 @@ void displayIncoming( uint8_t pBufMidi[] ){
 
 
 void readMux() {
-  // loop through channels 0 - 15
   for (uint8_t i = 0; i < 15; i++) {
     mux.channel(i);
     int val = digitalRead(DEMUX_PIN);
@@ -976,6 +956,8 @@ void savePreset(uint8_t pPresetIndex){
 
   showMenu("", "Save Preset " + String(pPresetIndex), "");
   delay(1000);
+  oled.clear();
+  delay(10);
   showMenu(getPreviousMenuItem(iMenuPosition), getMenuItem( iMenuPosition ), getNextMenuItem(iMenuPosition));
 
 }
