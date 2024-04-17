@@ -5,13 +5,6 @@
   Based on mini USB host shield
   Takes a MIDI input from a USB MIDI Keyboard, processes it and sends it out via MIDI socket.
 
-    -velocity fixer: converts incoming velocity to a fix value
-    -velocity booster: multiplies a note's velocity by a given factor (for keyboards with no adjustable velcity-curve)
-    -scaler 1: only processes notes that fit into a selected scale
-    -scaler 2: maps every incoming note to the nearest note of a selected scale
-
-    74hc4067 doesn't need pulldown resistors on slow buttons but DEFINITELY on a rotary encoder
-
 */
 #include <usbh_midi.h>
 #include <usbhub.h>
@@ -31,7 +24,7 @@ USB Usb;
 USBHub Hub(&Usb);
 USBH_MIDI  Midi(&Usb);
 
-#define VERSION "0.95"
+#define VERSION "0.96"
 #define MAX_RESET 8 //MAX3421E pin 12
 #define MAX_GPX   9 //MAX3421E pin 17
 
@@ -95,6 +88,8 @@ AppFeature arrFeatures[] = {
   AppFeature("A#", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_As),
   AppFeature("H", FEATURE_GROUP_ROOTNOTE, ROOTNOTE_H),
 
+  AppFeature("Fltr", FEATURE_GROUP_SCALE_HANDLER, SCALE_HANDLER_FILTER, true),
+  AppFeature("Map", FEATURE_GROUP_SCALE_HANDLER, SCALE_HANDLER_MAPPER),
 
   AppFeature("PT", FEATURE_GROUP_CHANNEL, CHANNEL_PASSTHRU, true),
   AppFeature("1", FEATURE_GROUP_CHANNEL, CHANNEL_1),
@@ -116,7 +111,7 @@ AppFeature arrFeatures[] = {
   AppFeature(" ", FEATURE_GROUP_PLACEHOLDER, 0)
 };
 
-const uint8_t FEATURECOUNT = 42;
+const uint8_t FEATURECOUNT = 44;
 int iMenuPosition = -3;
 uint8_t iRootNoteOffset=0;
 
@@ -127,7 +122,7 @@ struct QueueItem{
 
 };
 
-const uint8_t QUEUELENGTH = 8;
+const uint8_t QUEUELENGTH = 4;
 uint8_t cueueWriteIndex=0; // Points to the next usable element in the queue.
 uint8_t cueueReadIndex=0;
 QueueItem midiQueue[QUEUELENGTH];
@@ -149,8 +144,31 @@ void initMidiQueue(){
   //}
 }
 
+void deletePresets(){
+  EEPROM.update(10, 255);
+  EEPROM.update(11, 255);
+  EEPROM.update(12, 255);
+  EEPROM.update(13, 255);
+
+  EEPROM.update(20, 255);
+  EEPROM.update(21, 255);
+  EEPROM.update(22, 255);
+  EEPROM.update(23, 255);
+
+  EEPROM.update(30, 255);
+  EEPROM.update(31, 255);
+  EEPROM.update(32, 255);
+  EEPROM.update(33, 255);
+
+  EEPROM.update(40, 255);
+  EEPROM.update(41, 255);
+  EEPROM.update(42, 255);
+  EEPROM.update(43, 255);
+}
+
 void setup()
 {
+  //deletePresets();
   initMidiQueue();
   randomSeed(analogRead(1));
   pinMode(DEMUX_PIN, INPUT);
@@ -433,7 +451,21 @@ uint8_t processMidi_Channel( uint8_t pBufMidi[], uint8_t pOffset ){
 
 int processMidi_Pitch( uint8_t pBufMidi[] ){
   uint8_t iPitch = pBufMidi[1];
-  bool bIsValidNote = true;
+  bool bIsValidNote = false;
+  bool bReprocessInput = true;
+  uint8_t iNoteMapperOffset = 0;
+
+  for(uint8_t i=0; i<FEATURECOUNT; i++){
+    if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_SCALE_HANDLER){
+      if(arrFeatures[i].getFeature()==SCALE_HANDLER_FILTER){
+        if( arrFeatures[i].isSelected() ){
+          // Bei MAPPER wird die eingehende Note solange veraendert und neu verarbeitet, bis es passt.
+          // Bei FILTER heisst es: Passt oder Ppasst nicht.
+          bReprocessInput = false;
+        }
+      }
+    }
+  }
 
   for(uint8_t i=0; i<FEATURECOUNT; i++){
     if(arrFeatures[i].isSelected()){
@@ -441,8 +473,6 @@ int processMidi_Pitch( uint8_t pBufMidi[] ){
       /*
         First we need to get the selected ROOT note. this will be taken as an offset: C=0, C#=1, etc.
         Scale transform: indices based on root note and iRootNoteOffset
-          Major scale: 0 2 4 5 7 8 11
-          Minor scale: 0 2 3 5 7 8 10
       */
       if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_SCALE){
         // iPitch+12 in order to not run into negative values on lowest octave
@@ -450,62 +480,81 @@ int processMidi_Pitch( uint8_t pBufMidi[] ){
         if(arrFeatures[i].getFeature()==SCALE_PASSTHRU){
           bIsValidNote = true;
         }else if(arrFeatures[i].getFeature()==SCALE_MAJOR){
-
-          if( (tmpNote == 0)||
-              (tmpNote == 2)||
-              (tmpNote == 4)||
-              (tmpNote == 5)||
-              (tmpNote == 7)||
-              (tmpNote == 9)||
-              (tmpNote == 11) ){
-                
-            }else{
-              bIsValidNote = false;
-            }
+          do{
+            if( (tmpNote == 0)||
+                (tmpNote == 2)||
+                (tmpNote == 4)||
+                (tmpNote == 5)||
+                (tmpNote == 7)||
+                (tmpNote == 9)||
+                (tmpNote == 11) ){
+                  bIsValidNote = true;
+                  bReprocessInput = false;
+              }else{
+                bIsValidNote = false;
+                iNoteMapperOffset++;
+                tmpNote+=iNoteMapperOffset;
+              }
+          }while(bReprocessInput == true);
           break;
         }else if(arrFeatures[i].getFeature()==SCALE_MINOR){
-          if( (tmpNote == 0)||
-              (tmpNote == 2)||
-              (tmpNote == 3)||
-              (tmpNote == 5)||
-              (tmpNote == 7)||
-              (tmpNote == 8)||
-              (tmpNote == 10) ){
-                
-            }else{
-              bIsValidNote = false;
-            }
+          do{
+            if( (tmpNote == 0)||
+                (tmpNote == 2)||
+                (tmpNote == 3)||
+                (tmpNote == 5)||
+                (tmpNote == 7)||
+                (tmpNote == 8)||
+                (tmpNote == 10) ){
+                  bIsValidNote = true;
+                  bReprocessInput = false;
+              }else{
+                bIsValidNote = false;
+                iNoteMapperOffset++;
+                tmpNote+=iNoteMapperOffset;
+              }
+          }while(bReprocessInput == true);
           break;
         }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC_MAJOR){
-          if( (tmpNote == 0)||
-              (tmpNote == 2)||
-              (tmpNote == 4)||
-              (tmpNote == 7)||
-              (tmpNote == 9)||
-              (tmpNote == 12) ){
-                
-            }else{
-              bIsValidNote = false;
-            }
+          do{
+            if( (tmpNote == 0)||
+                (tmpNote == 2)||
+                (tmpNote == 4)||
+                (tmpNote == 7)||
+                (tmpNote == 9)||
+                (tmpNote == 12) ){
+                  bIsValidNote = true;
+                  bReprocessInput = false;
+              }else{
+                bIsValidNote = false;
+                iNoteMapperOffset++;
+                tmpNote+=iNoteMapperOffset;
+              }
+          }while(bReprocessInput == true);
           break;
         }else if(arrFeatures[i].getFeature()==SCALE_PENTATONIC_MINOR){
-          if( (tmpNote == 0)||
-              (tmpNote == 3)||
-              (tmpNote == 5)||
-              (tmpNote == 7)||
-              (tmpNote == 10)||
-              (tmpNote == 12) ){
-                
-            }else{
-              bIsValidNote = false;
-            }
+          do{
+            if( (tmpNote == 0)||
+                (tmpNote == 3)||
+                (tmpNote == 5)||
+                (tmpNote == 7)||
+                (tmpNote == 10)||
+                (tmpNote == 12) ){
+                  bIsValidNote = true;
+                  bReprocessInput = false;
+              }else{
+                bIsValidNote = false;
+                iNoteMapperOffset++;
+                tmpNote+=iNoteMapperOffset;
+              }
+          }while(bReprocessInput == true);
           break;
         }
       }
     }
   }
   if( bIsValidNote==true ){
-    return iPitch;
+    return iPitch+iNoteMapperOffset;
   }else {
     return -1;
   }
@@ -640,9 +689,6 @@ int queryEncoder(){
 
 void processEncoderClick(){
 
-  if(muxValue[BUTTON_0]==true){
-
-  }
   // We are at iMenuPosition
   uint8_t tmpFG = arrFeatures[iMenuPosition].getFeatureGroup();
   for(uint8_t i=0; i< FEATURECOUNT; i++){
@@ -717,7 +763,7 @@ void showMenu(String pLine1, String pLine2, String pLine3) {
   oled.println( " " + pLine3 );
 
   if(iActivePreset!=127){
-    oled.print("                       [ Preset:" + String(iActivePreset) + " ]");
+    oled.print("                     [ Preset:" + String(iActivePreset) + " ]");
   }
 }
 
@@ -778,6 +824,8 @@ String getFeaturePrefix(uint8_t pIndex){
     return "";  //because 'Major, Minor, etc is unique by itself and saves string data
   }if(arrFeatures[pIndex].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
     return "Root";
+  }if(arrFeatures[pIndex].getFeatureGroup()==FEATURE_GROUP_SCALE_HANDLER){
+    return "";
   }else{
     return "";
   }
@@ -791,7 +839,7 @@ void SerialPrintln(String p){
 /*
   Presets are organized byte-wise: The selected item of every individual feature_group is stored in 
   a dedicated byte. As of version 0.5 that's 4 bytes for the complete config. Order of storing:
-  FEATURE_GROUP_VELOCITY, SCALE, ROOTNOTE, CHANNEL.
+  FEATURE_GROUP_VELOCITY, SCALE, ROOTNOTE, SCALEHANDLER, CHANNEL.
 
   The byte's value marks the INDEX of the selected item. All bytes 0 means: 
   Every first item of every FEATURE_GROUP is selected (default).
@@ -817,6 +865,7 @@ void loadPreset(uint8_t pPresetIndex){
   uint8_t iFeaturecount_scale = 0;
   uint8_t iFeaturecount_rootnote = 0;
   uint8_t iFeaturecount_channel = 0;
+  uint8_t iFeatureCount_scalehandler = 0;
 
   for(uint8_t i=0; i<FEATURECOUNT; i++){
     if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
@@ -825,6 +874,8 @@ void loadPreset(uint8_t pPresetIndex){
       iFeaturecount_scale++;
     }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
       iFeaturecount_rootnote++;
+    }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_SCALE_HANDLER){
+      iFeatureCount_scalehandler++;
     }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
       iFeaturecount_channel++;
     }
@@ -865,11 +916,21 @@ void loadPreset(uint8_t pPresetIndex){
   val = EEPROM.read(iAddress + 3);
   if(val!=255){ 
     for(uint8_t j=0; j<FEATURECOUNT; j++){
-      if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+      if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_SCALE_HANDLER){
         arrFeatures[j].select(false);
       }
     }
     arrFeatures[val + iFeaturecount_velocity + iFeaturecount_scale + iFeaturecount_rootnote].select(true);
+  }
+
+  val = EEPROM.read(iAddress + 4);
+  if(val!=255){ 
+    for(uint8_t j=0; j<FEATURECOUNT; j++){
+      if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+        arrFeatures[j].select(false);
+      }
+    }
+    arrFeatures[val + iFeaturecount_velocity + iFeaturecount_scale + iFeaturecount_rootnote + iFeatureCount_scalehandler].select(true);
   }
 
   showPreset(pPresetIndex);
@@ -898,6 +959,7 @@ void savePreset(uint8_t pPresetIndex){
   uint8_t iFeaturecount_scale = 0;
   uint8_t iFeaturecount_rootnote = 0;
   uint8_t iFeaturecount_channel = 0;
+  uint8_t iFeaturecount_scalehandler = 0;
 
   for(uint8_t i=0; i<FEATURECOUNT; i++){
     if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_VELOCITY){
@@ -906,6 +968,8 @@ void savePreset(uint8_t pPresetIndex){
       iFeaturecount_scale++;
     }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_ROOTNOTE){
       iFeaturecount_rootnote++;
+    }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_SCALE_HANDLER){
+      iFeaturecount_scalehandler++;
     }else if(arrFeatures[i].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
       iFeaturecount_channel++;
     }
@@ -936,12 +1000,21 @@ void savePreset(uint8_t pPresetIndex){
   }
 
   for(uint8_t j=0; j<FEATURECOUNT; j++){
-    if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+    if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_SCALE_HANDLER){
       if(arrFeatures[j].isSelected()==true){
         EEPROM.update(iAddress+3, j - iFeaturecount_velocity - iFeaturecount_scale - iFeaturecount_rootnote);
       }
     }
   }
+
+  for(uint8_t j=0; j<FEATURECOUNT; j++){
+    if(arrFeatures[j].getFeatureGroup()==FEATURE_GROUP_CHANNEL){
+      if(arrFeatures[j].isSelected()==true){
+        EEPROM.update(iAddress+4, j - iFeaturecount_velocity - iFeaturecount_scale - iFeaturecount_rootnote - iFeaturecount_scalehandler);
+      }
+    }
+  }
+
 
   showMenu("", "Save Preset " + String(pPresetIndex), "");
   delay(1000);

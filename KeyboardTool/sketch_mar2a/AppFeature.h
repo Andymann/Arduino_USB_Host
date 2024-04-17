@@ -9,6 +9,7 @@ const uint8_t FEATURE_GROUP_VELOCITY = 1;
 const uint8_t FEATURE_GROUP_SCALE = 2;
 const uint8_t FEATURE_GROUP_ROOTNOTE = 4;
 const uint8_t FEATURE_GROUP_CHANNEL = 8;
+const uint8_t FEATURE_GROUP_SCALE_HANDLER = 16;
 
 const uint8_t VELOCITY_PASSTHRU = 0;
 const uint8_t VELOCITY_FIX_63 = 1;
@@ -22,6 +23,9 @@ const uint8_t SCALE_MAJOR = 1;
 const uint8_t SCALE_MINOR = 2;
 const uint8_t SCALE_PENTATONIC_MAJOR = 3;
 const uint8_t SCALE_PENTATONIC_MINOR = 4;
+
+const uint8_t SCALE_HANDLER_FILTER = 0;
+const uint8_t SCALE_HANDLER_MAPPER = 1;
 
 const uint8_t ROOTNOTE_PASSTHROUGH = 0;
 const uint8_t ROOTNOTE_C = 01;
